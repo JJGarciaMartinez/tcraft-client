@@ -1,0 +1,144 @@
+
+package ui;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class ModListPanel extends JPanel {
+    private final JPanel modsContainer;
+    private final Map<String, ModCard> modCards;
+    private final JLabel emptyLabel;
+
+    public ModListPanel() {
+        setLayout(new BorderLayout());
+        setBackground(new Color(35, 35, 35));
+
+        modCards = new HashMap<>();
+
+        // Contenedor de mods
+        modsContainer = new JPanel();
+        modsContainer.setLayout(new BoxLayout(modsContainer, BoxLayout.Y_AXIS));
+        modsContainer.setBackground(new Color(35, 35, 35));
+        modsContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Etiqueta para cuando no hay mods
+        emptyLabel = new JLabel("No hay mods instalados");
+        emptyLabel.setFont(new Font("Arial", Font.PLAIN, 18));
+        emptyLabel.setForeground(new Color(150, 150, 150));
+        emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+        JScrollPane scrollPane = new JScrollPane(modsContainer);
+        scrollPane.setBorder(null);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setBackground(new Color(35, 35, 35));
+
+        add(scrollPane, BorderLayout.CENTER);
+    }
+
+    public void addMod(String modName) {
+        SwingUtilities.invokeLater(() -> {
+            // Remover mensaje de vacío si existe
+            if (modsContainer.getComponentCount() == 1 && modsContainer.getComponent(0) == emptyLabel) {
+                modsContainer.remove(emptyLabel);
+            }
+
+            ModCard card = new ModCard(modName);
+            modCards.put(modName, card);
+            modsContainer.add(card);
+            modsContainer.add(Box.createVerticalStrut(10));
+            modsContainer.revalidate();
+            modsContainer.repaint();
+        });
+    }
+
+    /**
+     * Muestra los mods actuales instalados
+     * @param modNames Lista de nombres de mods
+     */
+    public void showCurrentMods(List<String> modNames) {
+        SwingUtilities.invokeLater(() -> {
+            clear();
+
+            if (modNames.isEmpty()) {
+                showEmptyMessage();
+            } else {
+                for (String modName : modNames) {
+                    ModCard card = new ModCard(modName);
+                    card.setStatus("Instalado", new Color(100, 200, 100));
+                    card.setCompleted(true);
+                    modCards.put(modName, card);
+                    modsContainer.add(card);
+                    modsContainer.add(Box.createVerticalStrut(10));
+                }
+            }
+
+            modsContainer.revalidate();
+            modsContainer.repaint();
+        });
+    }
+
+    private void showEmptyMessage() {
+        modsContainer.add(Box.createVerticalGlue());
+        modsContainer.add(emptyLabel);
+        modsContainer.add(Box.createVerticalGlue());
+    }
+
+    public void setModStatus(String modName, String status, Color color) {
+        ModCard card = modCards.get(modName);
+        if (card != null) {
+            card.setStatus(status, color);
+        }
+    }
+
+    public void setModProgress(String modName, int percentage) {
+        ModCard card = modCards.get(modName);
+        if (card != null) {
+            card.setProgress(percentage);
+        }
+    }
+
+    public void setModCompleted(String modName, boolean success) {
+        ModCard card = modCards.get(modName);
+        if (card != null) {
+            card.setCompleted(success);
+        }
+    }
+
+    public void setModDownloading(String modName) {
+        ModCard card = modCards.get(modName);
+        if (card != null) {
+            card.setDownloading();
+        }
+    }
+
+    public void setModChecking(String modName) {
+        ModCard card = modCards.get(modName);
+        if (card != null) {
+            card.setChecking();
+        }
+    }
+
+    public void setModAlreadyInstalled(String modName) {
+        ModCard card = modCards.get(modName);
+        if (card != null) {
+            card.setAlreadyInstalled();
+        }
+    }
+
+    public void clear() {
+        SwingUtilities.invokeLater(() -> {
+            modsContainer.removeAll();
+            modCards.clear();
+            modsContainer.revalidate();
+            modsContainer.repaint();
+        });
+    }
+
+    public int getModCount() {
+        return modCards.size();
+    }
+}

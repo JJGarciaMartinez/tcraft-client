@@ -1,4 +1,5 @@
+import ui.UIController;
 
 void main() {
-    LauncherFrame.init();
+    UIController.create();
 }
