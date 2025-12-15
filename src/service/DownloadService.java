@@ -7,12 +7,18 @@ import java.util.Scanner;
 
 public class DownloadService {
 
-    public String getUrlString(String urlString) throws IOException {
+    /**
+     * Crea y configura una conexión HTTP
+     * @param urlString URL a la que conectarse
+     * @return Conexión HTTP configurada y validada
+     * @throws IOException Si hay un error de conexión o la URL es inválida
+     */
+    private HttpURLConnection createConnection(String urlString) throws IOException {
         URI uri;
         try {
             uri = new URI(urlString);
         } catch (URISyntaxException e) {
-            throw new IOException("Invalidate URL: " + urlString, e);
+            throw new IOException("Invalid URL: " + urlString, e);
         }
 
         HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
@@ -23,8 +29,14 @@ public class DownloadService {
         // Check HTTP response code
         int responseCode = connection.getResponseCode();
         if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP error: " + responseCode + " para URL: " + urlString);
+            throw new IOException("HTTP error: " + responseCode + " for URL: " + urlString);
         }
+
+        return connection;
+    }
+
+    public String getUrlString(String urlString) throws IOException {
+        HttpURLConnection connection = createConnection(urlString);
 
         // Get charset from the Content-Type header, default to UTF-8
         String charset = "UTF-8";
@@ -44,30 +56,12 @@ public class DownloadService {
             scanner.useDelimiter("\\A");
             return scanner.hasNext() ? scanner.next() : "";
         }
-        
-        
     }
 
     public void downloadFile(String urlString, File destination) throws IOException {
-        URI uri;
+        HttpURLConnection connection = createConnection(urlString);
+
         try {
-            uri = new URI(urlString);
-        } catch (URISyntaxException e) {
-            throw new IOException("Invalid URL: " + urlString, e);
-        }
-        
-        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
-        connection.setConnectTimeout(10000); // 10 seconds
-        connection.setReadTimeout(30000);     // 30 seconds
-        
-        try {
-            // Check HTTP response code
-            int responseCode = connection.getResponseCode();
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                throw new IOException("HTTP error: " + responseCode + " for URL: " + urlString);
-            }
-            
             try (InputStream in = connection.getInputStream();
                  FileOutputStream out = new FileOutputStream(destination)) {
                 byte[] buffer = new byte[4096];

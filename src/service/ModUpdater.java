@@ -16,12 +16,18 @@ public class ModUpdater {
     private final DownloadService downloadService;
     private final Consumer<String> logger;
     private final BiConsumer<Integer, Integer> progressUpdater;
+    private final Consumer<ModInfo> modInfoCallback;
 
     public ModUpdater(Consumer<String> logger, BiConsumer<Integer, Integer> progressUpdater) {
+        this(logger, progressUpdater, null);
+    }
+
+    public ModUpdater(Consumer<String> logger, BiConsumer<Integer, Integer> progressUpdater, Consumer<ModInfo> modInfoCallback) {
         this.fileSystemService = new FileSystemService();
         this.downloadService = new DownloadService();
         this.logger = logger;
         this.progressUpdater = progressUpdater;
+        this.modInfoCallback = modInfoCallback;
     }
 
     public void initUpdate() throws Exception {
@@ -64,14 +70,17 @@ public class ModUpdater {
             for (File archivo : archivosLocales) {
                 boolean existeEnRemoto = false;
                 for (ModInfo mod : modsRemotos) {
-                    if (mod.getName().equals(archivo.getName())) {
+                    if (mod.name().equals(archivo.getName())) {
                         existeEnRemoto = true;
                         break;
                     }
                 }
                 if (!existeEnRemoto) {
                     logger.accept("Eliminando obsoleto: " + archivo.getName());
-                    archivo.delete();
+                    boolean deleted = archivo.delete();
+                    if (!deleted) {
+                        logger.accept("Advertencia: No se pudo eliminar " + archivo.getName());
+                    }
                 }
             }
         }
@@ -88,20 +97,32 @@ public class ModUpdater {
                 return;
             }
 
-            File archivoDestino = new File(carpetaMods, mod.getName());
+            File archivoDestino = new File(carpetaMods, mod.name());
             procesados++;
             progressUpdater.accept(procesados, total);
 
             try {
                 if (!archivoDestino.exists()) {
-                    logger.accept("Descargando: " + mod.getName());
-                    downloadService.downloadFile(mod.getUrl(), archivoDestino);
-                    logger.accept("Completado: " + mod.getName());
+                    // Notificar ModInfo completo ANTES del log para crear la tarjeta primero
+                    if (modInfoCallback != null) {
+                        modInfoCallback.accept(mod);
+                    }
+                    logger.accept("Descargando: " + mod.name());
+                    downloadService.downloadFile(mod.url(), archivoDestino);
+                    logger.accept("Completado: " + mod.name());
                 } else {
-                    logger.accept("OK: " + mod.getName() + " (ya existe)");
+                    // Notificar ModInfo completo ANTES del log
+                    if (modInfoCallback != null) {
+                        modInfoCallback.accept(mod);
+                    }
+                    logger.accept("OK: " + mod.name() + " (ya existe)");
                 }
             } catch (IOException e) {
-                logger.accept("Error en " + mod.getName() + ": " + e.getMessage());
+                // Notificar ModInfo ANTES del log de error
+                if (modInfoCallback != null) {
+                    modInfoCallback.accept(mod);
+                }
+                logger.accept("Error en " + mod.name() + ": " + e.getMessage());
                 // Continuar con el siguiente mod en lugar de fallar completamente
             }
         }

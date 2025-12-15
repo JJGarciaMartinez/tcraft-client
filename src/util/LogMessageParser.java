@@ -16,8 +16,7 @@ public class LogMessageParser {
                 if (name.contains("(")) {
                     name = name.substring(0, name.indexOf("(")).trim();
                 }
-                // Remover la extensión .jar para mostrar
-                name = name.replace(".jar", "");
+                // NO remover la extensión .jar para que coincida con modInfo.name()
                 return name;
             }
         }
@@ -32,7 +31,7 @@ public class LogMessageParser {
             String temp = message.substring(message.indexOf("Error en") + 9);
             if (temp.contains(":")) {
                 String name = temp.substring(0, temp.indexOf(":")).trim();
-                name = name.replace(".jar", "");
+                // NO remover la extensión .jar para que coincida con modInfo.name()
                 return name;
             }
         }

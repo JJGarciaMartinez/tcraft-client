@@ -1,5 +1,7 @@
 package util;
 
+import config.AssetPaths;
+
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +19,7 @@ public class FontLoader {
     public static Font getMinecraftFont() {
         if (minecraftFont == null) {
             try {
-                File fontFile = new File("assets/font/minecraft-mojangles.ttf");
+                File fontFile = new File(AssetPaths.MINECRAFT_FONT);
                 minecraftFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
 
                 // Registrar la fuente en el GraphicsEnvironment

@@ -1,5 +1,7 @@
 package ui;
 
+import service.FileSystemService;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -7,6 +9,7 @@ public class LauncherUI extends JFrame {
     private final HeaderPanel headerPanel;
     private final ModListPanel modListPanel;
     private final ControlPanel controlPanel;
+    public final FileSystemService fileSystemService = new FileSystemService();
 
     public LauncherUI() {
         super("Tcraft Client - Actualizador de Mods");
@@ -20,7 +23,7 @@ public class LauncherUI extends JFrame {
         setBackground(new Color(30, 30, 30));
 
         // Crear paneles
-        headerPanel = new HeaderPanel();
+        headerPanel = new HeaderPanel(fileSystemService);
         modListPanel = new ModListPanel();
         controlPanel = new ControlPanel();
 

@@ -1,6 +1,8 @@
 
 package ui;
 
+import model.ModInfo;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.HashMap;
@@ -56,6 +58,50 @@ public class ModListPanel extends JPanel {
     }
 
     /**
+     * Agrega un mod con información completa
+     * @param modInfo Información completa del mod
+     */
+    public void addMod(ModInfo modInfo) {
+        SwingUtilities.invokeLater(() -> {
+            addModInternal(modInfo);
+        });
+    }
+
+    /**
+     * Agrega un mod de forma síncrona (uso interno desde EDT)
+     * @param modInfo Información completa del mod
+     */
+    public void addModSync(ModInfo modInfo) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            addModInternal(modInfo);
+        } else {
+            try {
+                SwingUtilities.invokeAndWait(() -> addModInternal(modInfo));
+            } catch (Exception e) {
+                System.err.println("Error agregando mod: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Implementación interna para agregar mod (debe llamarse desde EDT)
+     */
+    private void addModInternal(ModInfo modInfo) {
+        // Remover mensaje de vacío si existe
+        if (modsContainer.getComponentCount() == 1 && modsContainer.getComponent(0) == emptyLabel) {
+            modsContainer.remove(emptyLabel);
+        }
+
+        System.out.println("✅ Creando ModCard con key: '" + modInfo.name() + "'");
+        ModCard card = new ModCard(modInfo);
+        modCards.put(modInfo.name(), card);
+        modsContainer.add(card);
+        modsContainer.add(Box.createVerticalStrut(10));
+        modsContainer.revalidate();
+        modsContainer.repaint();
+    }
+
+    /**
      * Muestra los mods actuales instalados
      * @param modNames Lista de nombres de mods
      */
@@ -68,9 +114,35 @@ public class ModListPanel extends JPanel {
             } else {
                 for (String modName : modNames) {
                     ModCard card = new ModCard(modName);
-                    card.setStatus("Instalado", new Color(100, 200, 100));
+                    card.setStatus(StatusType.SUCCESS,"Instalado", new Color(100, 200, 100));
                     card.setCompleted(true);
                     modCards.put(modName, card);
+                    modsContainer.add(card);
+                    modsContainer.add(Box.createVerticalStrut(10));
+                }
+            }
+
+            modsContainer.revalidate();
+            modsContainer.repaint();
+        });
+    }
+
+    /**
+     * Muestra los mods actuales instalados con información completa
+     * @param mods Lista de ModInfo con información completa
+     */
+    public void showCurrentModsWithInfo(List<ModInfo> mods) {
+        SwingUtilities.invokeLater(() -> {
+            clear();
+
+            if (mods.isEmpty()) {
+                showEmptyMessage();
+            } else {
+                for (ModInfo modInfo : mods) {
+                    ModCard card = new ModCard(modInfo);
+                    card.setStatus(StatusType.SUCCESS,"Instalado", new Color(100, 200, 100));
+                    card.setCompleted(true);
+                    modCards.put(modInfo.name(), card);
                     modsContainer.add(card);
                     modsContainer.add(Box.createVerticalStrut(10));
                 }
@@ -87,46 +159,36 @@ public class ModListPanel extends JPanel {
         modsContainer.add(Box.createVerticalGlue());
     }
 
-    public void setModStatus(String modName, String status, Color color) {
+    /**
+     * Método genérico para ejecutar una acción en una tarjeta de mod específica
+     * @param modName Nombre del mod
+     * @param action Acción a ejecutar en la tarjeta (usando Consumer)
+     */
+    private void executeOnModCard(String modName, java.util.function.Consumer<ModCard> action) {
         ModCard card = modCards.get(modName);
         if (card != null) {
-            card.setStatus(status, color);
+            action.accept(card);
+        } else {
+            System.err.println("⚠️ ModCard no encontrado para: '" + modName + "'");
+            System.err.println("   Keys disponibles: " + modCards.keySet());
         }
     }
 
-    public void setModProgress(String modName, int percentage) {
-        ModCard card = modCards.get(modName);
-        if (card != null) {
-            card.setProgress(percentage);
-        }
-    }
 
     public void setModCompleted(String modName, boolean success) {
-        ModCard card = modCards.get(modName);
-        if (card != null) {
-            card.setCompleted(success);
-        }
+        executeOnModCard(modName, card -> card.setCompleted(success));
     }
 
     public void setModDownloading(String modName) {
-        ModCard card = modCards.get(modName);
-        if (card != null) {
-            card.setDownloading();
-        }
+        executeOnModCard(modName, ModCard::setDownloading);
     }
 
     public void setModChecking(String modName) {
-        ModCard card = modCards.get(modName);
-        if (card != null) {
-            card.setChecking();
-        }
+        executeOnModCard(modName, ModCard::setChecking);
     }
 
     public void setModAlreadyInstalled(String modName) {
-        ModCard card = modCards.get(modName);
-        if (card != null) {
-            card.setAlreadyInstalled();
-        }
+        executeOnModCard(modName, ModCard::setAlreadyInstalled);
     }
 
     public void clear() {
