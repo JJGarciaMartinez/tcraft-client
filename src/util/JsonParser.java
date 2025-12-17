@@ -5,13 +5,27 @@ import model.ModInfo;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A simple JSON parser for extracting mod information from a JSON string.
+ * This parser is designed to handle a specific JSON structure containing an array of mods.
+ * Each mod is expected to have fields such as name, version, description, author, and url.
+ * <p>
+ * The parser does not rely on external libraries and performs basic string manipulation
+ * to extract the required information. It includes error handling for malformed entries
+ * and logs warnings for any mods that cannot be parsed correctly.
+ */
 public class JsonParser {
 
-    @org.jetbrains.annotations.NotNull
-    public static List<ModInfo> parsearJsonSimple(String json) {
+    /**
+     * Parses a JSON string to extract a list of ModInfo objects.
+     * The JSON is expected to contain an array of mods under the "mods" key.
+     * @param json the JSON string to parse
+     * @return a list of ModInfo objects extracted from the JSON
+     */
+    public static List<ModInfo> jsonSimpleParse(String json) {
         List<ModInfo> modsList = new ArrayList<>();
 
-        // Eliminar espacios en blanco y validar que no esté vacío
+        // Delete whitespaces at the beginning and the end
         json = json.trim();
         if (json.isEmpty()) {
             System.err.println("Error: JSON vacío");
@@ -21,7 +35,7 @@ public class JsonParser {
         System.out.println("Parsing JSON...");
         System.out.println("JSON: " + json);
 
-        // Buscar el array de mods dentro del JSON
+        // Search for the "mods" array key
         String modsArrayKey = "\"mods\":";
         int modsArrayStart = json.indexOf(modsArrayKey);
         if (modsArrayStart == -1) {
@@ -29,21 +43,21 @@ public class JsonParser {
             return modsList;
         }
 
-        // Encontrar el inicio del array después de "mods":
+        // Find the start of the array
         int arrayBracketStart = json.indexOf("[", modsArrayStart);
         if (arrayBracketStart == -1) {
             System.err.println("Error: No se encontró el inicio del array de mods");
             return modsList;
         }
 
-        // Encontrar el final del array
+        // Find the end of the array
         int arrayBracketEnd = json.indexOf("]", arrayBracketStart);
         if (arrayBracketEnd == -1) {
             System.err.println("Error: No se encontró el final del array de mods");
             return modsList;
         }
 
-        // Extraer solo el contenido del array de mods
+        // Extract the mods array content
         String modsArray = json.substring(arrayBracketStart + 1, arrayBracketEnd).trim();
 
         if (modsArray.isEmpty()) {
@@ -51,7 +65,7 @@ public class JsonParser {
             return modsList;
         }
 
-        // Dividir por las llaves de cierre seguidas de coma
+        // Split the mods array into individual mod entries
         String[] modEntries = modsArray.split("},\\s*\\{");
 
         int modsIgnorados = 0;
@@ -61,18 +75,18 @@ public class JsonParser {
 
             if (modEntry.isEmpty()) continue;
 
-            // Limpiar las llaves restantes si existen
+            // Adjust braces for the first and last entries
             modEntry = modEntry.replace("{", "").replace("}", "");
 
-            String name = extraerValor(modEntry, "\"name\":");
-            String version = extraerValor(modEntry, "\"version\":");
-            String description = extraerValor(modEntry, "\"description\":");
-            String author = extraerValor(modEntry, "\"author\":");
-            String url = extraerValor(modEntry, "\"url\":");
+            String name = extractValue(modEntry, "\"name\":");
+            String version = extractValue(modEntry, "\"version\":");
+            String description = extractValue(modEntry, "\"description\":");
+            String author = extractValue(modEntry, "\"author\":");
+            String url = extractValue(modEntry, "\"url\":");
 
-            // Validar que al menos tenga nombre y url (campos esenciales)
+            // Validate required fields
             if (name != null && url != null) {
-                // Si faltan campos opcionales, usar valores por defecto
+                // If optional fields are missing, set default values
                 if (version == null) version = "desconocida";
                 if (description == null) description = "Sin descripción";
                 if (author == null) author = "Desconocido";
@@ -94,7 +108,13 @@ public class JsonParser {
         return modsList;
     }
 
-    private static String extraerValor(String texto, String key) {
+    /**
+     * Extracts the value associated with a given key from a JSON-like string.
+     * @param texto the input string containing key-value pairs
+     * @param key the key whose value needs to be extracted
+     * @return the extracted value, or null if the key is not found
+     */
+    private static String extractValue(String texto, String key) {
         int index = texto.indexOf(key);
         if (index == -1) return null;
         int start = texto.indexOf("\"", index + key.length()) + 1;

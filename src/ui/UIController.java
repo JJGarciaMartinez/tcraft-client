@@ -1,57 +1,55 @@
 package ui;
 
 import model.ModInfo;
-import service.FileSystemService;
 import service.ModUpdater;
-import util.LogMessageParser;
 
 import javax.swing.*;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * The UIController is responsible for managing the interactions between the user interface (UI)
+ * components and the underlying services, specifically handling the process of loading, refreshing,
+ * and updating mods. It serves as the primary controller for managing user actions and system updates
+ * within the mod-launching application.
+ */
 public class UIController {
     private final LauncherUI ui;
-    private final FileSystemService fileSystemService;
-    private Thread updateThread;
-    private volatile boolean hasErrors = false;
-    private final AtomicInteger completedMods = new AtomicInteger(0);
-    private volatile int failedMods = 0;
-
-    public UIController(LauncherUI ui) {
-        this.ui = ui;
-        this.fileSystemService = new FileSystemService();
-        setupListeners();
-        loadCurrentMods();
-    }
+    private final UpdateStateManager stateManager;
+    private final UINotificationService notificationService;
+    private final ModLoadService modLoadService;
+    private final LogHandler logHandler;
 
     /**
-     * Carga y muestra los mods actualmente instalados
+     * Constructs a new instance of the UIController class, which serves as the controller
+     * for coordinating interactions between the LauncherUI and underlying services. This class
+     * initializes the necessary services and sets up event listeners to handle user interactions
+     * and mod management operations.
+     *
+     * @param ui the instance of LauncherUI representing the primary user interface of the application.
      */
-    private void loadCurrentMods() {
-        // Cargar mods en un hilo separado para no bloquear la UI
-        new Thread(() -> {
-            try {
-                List<String> currentMods = fileSystemService.getCurrentMods();
-                int modCount = currentMods.size();
+    public UIController(LauncherUI ui) {
+        this.ui = ui;
+        this.stateManager = new UpdateStateManager();
+        this.notificationService = new UINotificationService(ui);
+        this.modLoadService = new ModLoadService(ui, notificationService);
+        this.logHandler = new LogHandler(ui, stateManager);
 
-                // Actualizar UI
-                ui.getModListPanel().showCurrentMods(currentMods);
+        setupListeners();
 
-                if (modCount > 0) {
-                    ui.getHeaderPanel().setStatusSuccess();
-                    ui.getHeaderPanel().updateModsStatus(modCount + (modCount == 1 ? " mod instalado" : " mods instalados"));
-                } else {
-                    ui.getHeaderPanel().setStatusWarning();
-                    ui.getHeaderPanel().updateModsStatus("No se encontraron mods instalados");
-                }
-            } catch (Exception e) {
-                System.err.println("Error al cargar mods: " + e.getMessage());
-                ui.getHeaderPanel().setStatusError();
-                ui.getHeaderPanel().updateModsStatus("Error al cargar mods");
-            }
-        }).start();
+        // Load mods before showing UI
+        SwingUtilities.invokeLater(modLoadService::loadCurrentMods);
     }
 
+
+    /**
+     * Configures the action listeners for the control panel buttons in the user interface.
+     * This method assigns specific operations to be executed when each button is clicked:
+     * - The update button triggers the {@code startUpdate()} method to initiate the update process.
+     * - The cancel button triggers the {@code cancelUpdate()} method to abort an ongoing update operation.
+     * - The refresh button triggers the {@code refreshModList()} method to reload and display the updated list of mods.
+     * <p>
+     * The listeners ensure that the UI responds appropriately to user interactions on the
+     * control panel, facilitating update management and mod list refresh functionality.
+     */
     private void setupListeners() {
         ui.getControlPanel().setUpdateButtonListener(_ -> startUpdate());
         ui.getControlPanel().setCancelButtonListener(_ -> cancelUpdate());
@@ -59,199 +57,92 @@ public class UIController {
     }
 
     /**
-     * Refresca la lista de mods instalados
+     * Refreshes the mod list displayed in the user interface.
      */
     private void refreshModList() {
-        ui.getHeaderPanel().setStatusProcessing();
-        ui.getHeaderPanel().updateModsStatus("Refrescando lista...");
-        ui.getControlPanel().updateStatus("Actualizando información...");
-
-        loadCurrentMods();
-
-        // Pequeño delay para mostrar el feedback visual
-        Timer timer = new Timer(500, e -> {
-            ui.getControlPanel().updateStatus("Lista actualizada");
-            ((Timer)e.getSource()).stop();
-        });
-        timer.setRepeats(false);
-        timer.start();
+        modLoadService.refreshModList();
     }
 
+    /**
+     * Initiates the update process by resetting UI components, clearing counters,
+     * and starting a new thread to execute the update operation.
+     */
     private void startUpdate() {
-        ui.getModListPanel().clear();
-        ui.getControlPanel().setUpdateInProgress(true);
-        ui.getControlPanel().updateStatus("Actualizando...");
-        ui.getHeaderPanel().updateModsStatus("Actualización en progreso");
-        ui.getHeaderPanel().setStatusProcessing();
+        notificationService.notifyUpdateStarting();
+        stateManager.reset();
 
-        // Reset counters
-        hasErrors = false;
-        completedMods.set(0);
-        failedMods = 0;
-
-        updateThread = new Thread(this::executeUpdate);
+        Thread updateThread = new Thread(this::executeUpdate);
+        stateManager.setUpdateThread(updateThread);
         updateThread.start();
     }
 
+    /**
+     * Cancels the ongoing update operation if it is currently in progress.
+     */
     private void cancelUpdate() {
-        if (updateThread != null && updateThread.isAlive()) {
-            updateThread.interrupt();
-            ui.getControlPanel().updateStatus("Actualización cancelada");
-            ui.getHeaderPanel().updateModsStatus("Actualizador de Mods");
-            ui.getHeaderPanel().setStatusWarning();
-            ui.getControlPanel().setUpdateInProgress(false);
-
-            // Recargar los mods actuales
-            loadCurrentMods();
+        if (stateManager.isUpdateRunning()) {
+            stateManager.cancelUpdate();
+            notificationService.notifyUpdateCanceled();
+            modLoadService.loadCurrentMods();
         }
     }
 
+    /**
+     * Executes the update process for modifications (mods).
+     */
     private void executeUpdate() {
         try {
             ModUpdater updater = new ModUpdater(
-                    this::onLog,
-                    this::onProgress,
-                    this::onModInfo  // Nuevo callback para ModInfo completo
+                    logHandler::handleLog,
+                    notificationService::notifyProgress,
+                    this::onModInfo
             );
             updater.initUpdate();
 
             SwingUtilities.invokeLater(() -> {
-                ui.getControlPanel().setUpdateInProgress(false);
-
-                if (failedMods > 0) {
-                    ui.getControlPanel().updateStatus(
-                            String.format("Completado con errores (%d fallidos)", failedMods)
+                if (stateManager.hasErrors() || stateManager.getFailedCount() > 0) {
+                    notificationService.notifyUpdateCompletedWithErrors(
+                            stateManager.getCompletedCount(),
+                            stateManager.getFailedCount()
                     );
-                    ui.getHeaderPanel().updateModsStatus("Actualización completada con errores");
-                    ui.getHeaderPanel().setStatusWarning();
-
-                    JOptionPane.showMessageDialog(ui,
-                            String.format(
-                                    """
-                                            Actualización completada con algunos errores.
-                                            
-                                            Mods exitosos: %d
-                                            Mods fallidos: %d
-                                            
-                                            Revisa los detalles arriba.""",
-                                    completedMods.get(), failedMods
-                            ),
-                            "Actualización Completada con Errores",
-                            JOptionPane.WARNING_MESSAGE);
                 } else {
-                    ui.getControlPanel().updateStatus("Actualización completada exitosamente");
-                    ui.getHeaderPanel().updateModsStatus("Mods actualizados correctamente");
-                    ui.getHeaderPanel().setStatusSuccess();
-
-                    JOptionPane.showMessageDialog(ui,
-                            String.format(
-                                    """
-                                            Todos los mods han sido actualizados correctamente.
-                                            
-                                            Total de mods: %d""",
-                                    completedMods.get()
-                            ),
-                            "Actualización Completa",
-                            JOptionPane.INFORMATION_MESSAGE);
+                    notificationService.notifyUpdateCompletedSuccessfully(
+                            stateManager.getCompletedCount()
+                    );
                 }
             });
 
         } catch (Exception e) {
             System.err.println("Error crítico durante la actualización: " + e.getMessage());
             SwingUtilities.invokeLater(() -> {
-                ui.getControlPanel().updateStatus("Error crítico en la actualización");
-                ui.getHeaderPanel().updateModsStatus("Error");
-                ui.getHeaderPanel().setStatusError();
-                ui.getControlPanel().setUpdateInProgress(false);
-
                 String errorMessage = e.getMessage();
                 if (errorMessage == null || errorMessage.isEmpty()) {
                     errorMessage = e.getClass().getSimpleName();
                 }
 
-                JOptionPane.showMessageDialog(ui,
-                        "Error crítico durante la actualización:\n\n" + errorMessage,
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE);
-
-                // Recargar los mods actuales tras el error
-                loadCurrentMods();
+                notificationService.notifyCriticalError(errorMessage);
+                modLoadService.loadCurrentMods();
             });
         }
     }
 
-    private void onLog(String message) {
-        System.out.println(message); // Para debugging
-
-        // Parsear el mensaje para actualizar estado de las tarjetas
-        if (message.contains("Verificando") || message.contains("---")) {
-            // Mensajes de sistema, no crear tarjetas
-            return;
-        }
-
-        if (message.contains("Descargando:")) {
-            String modName = LogMessageParser.extractModName(message);
-            if (modName != null) {
-                System.out.println("🔄 Actualizando estado 'Descargando' para: '" + modName + "'");
-                ui.getModListPanel().setModDownloading(modName);
-            }
-        } else if (message.contains("Completado:")) {
-            String modName = LogMessageParser.extractModName(message);
-            if (modName != null) {
-                System.out.println("🔄 Actualizando estado 'Completado' para: '" + modName + "'");
-                ui.getModListPanel().setModCompleted(modName, true);
-                incrementCompletedMods();
-            }
-        } else if (message.contains("OK:")) {
-            String modName = LogMessageParser.extractModName(message);
-            if (modName != null) {
-                System.out.println("🔄 Actualizando estado 'OK' para: '" + modName + "'");
-                ui.getModListPanel().setModChecking(modName);
-                ui.getModListPanel().setModAlreadyInstalled(modName);
-                incrementCompletedMods();
-            }
-        } else if (message.contains("Error en")) {
-            String modName = LogMessageParser.extractModNameFromError(message);
-            if (modName != null) {
-                ui.getModListPanel().setModCompleted(modName, false);
-                failedMods++;
-                hasErrors = true;
-            }
-        } else if (message.contains("ERROR CRÍTICO") || message.contains("error") || message.contains("Error")) {
-            hasErrors = true;
-        }
-    }
-
     /**
-     * Callback que recibe la información completa del mod cuando se procesa
+     * Handles the modification information by adding it to the Mod List Panel
+     * for synchronization, ensuring that the card is created before log processing.
+     *
+     * @param modInfo The modification information object containing details
+     *                about the specific modification to process.
      */
     private void onModInfo(ModInfo modInfo) {
-        // Usar addModSync para asegurar que la tarjeta se crea ANTES de procesar logs
         ui.getModListPanel().addModSync(modInfo);
     }
 
-    private void incrementCompletedMods() {
-        completedMods.addAndGet(1);
-    }
-
-    private void onProgress(int current, int total) {
-        int percentage = (int) ((current / (float) total) * 100);
-        ui.getControlPanel().updateStatus(
-                String.format("Progreso: %d/%d (%d%%)", current, total, percentage)
-        );
-    }
-
+    /**
+     * Creates and displays the launcher UI with a new controller instance.
+     */
     public static void create() {
         LauncherUI ui = new LauncherUI();
         ui.setVisible(true);
         new UIController(ui);
-    }
-
-    public boolean isHasErrors() {
-        return hasErrors;
-    }
-
-    public void setHasErrors(boolean hasErrors) {
-        this.hasErrors = hasErrors;
     }
 }

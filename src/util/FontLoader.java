@@ -7,14 +7,19 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * Utilidad para cargar fuentes personalizadas desde la carpeta assets/font
+ * The FontLoader class provides utilities for loading and managing custom fonts,
+ * specifically the Minecraft Mojangles font. It includes methods to load the font
+ * from the assets directory and retrieve it in various styles and sizes.
+ * <p>
+ * This class ensures that the font is loaded only once and reused for later requests.
+ * If the font fails to load, it falls back to a default system font (Arial).
  */
 public class FontLoader {
     private static Font minecraftFont;
 
     /**
-     * Carga la fuente Minecraft Mojangles desde assets/font
-     * @return La fuente cargada o Arial como fallback
+     * Gets the Minecraft Mojangles font, loading it from the assets directory if not already loaded.
+     * @return The Minecraft Mojangles font
      */
     public static Font getMinecraftFont() {
         if (minecraftFont == null) {
@@ -22,7 +27,7 @@ public class FontLoader {
                 File fontFile = new File(AssetPaths.MINECRAFT_FONT);
                 minecraftFont = Font.createFont(Font.TRUETYPE_FONT, fontFile);
 
-                // Registrar la fuente en el GraphicsEnvironment
+                // Register the font with the graphics environment
                 GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
                 ge.registerFont(minecraftFont);
             } catch (FontFormatException | IOException e) {
@@ -34,22 +39,12 @@ public class FontLoader {
     }
 
     /**
-     * Obtiene la fuente Minecraft con un tamaño específico
-     * @param size El tamaño de la fuente
-     * @return La fuente con el tamaño especificado
+     * Gets the Minecraft font with a specific size
+     * @param size The size of the font
+     * @return The font with the specified size
      */
     public static Font getMinecraftFont(float size) {
         return getMinecraftFont().deriveFont(size);
-    }
-
-    /**
-     * Obtiene la fuente Minecraft con un estilo y tamaño específicos
-     * @param style El estilo (Font.PLAIN, Font.BOLD, Font.ITALIC)
-     * @param size El tamaño de la fuente
-     * @return La fuente con el estilo y tamaño especificados
-     */
-    public static Font getMinecraftFont(int style, float size) {
-        return getMinecraftFont().deriveFont(style, size);
     }
 }
 
