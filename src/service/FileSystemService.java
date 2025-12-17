@@ -69,7 +69,7 @@ public class FileSystemService {
             return mods;
         }
 
-        File[] jarFiles = modsFolder.listFiles((_, name) -> name.endsWith(".jar"));
+        File[] jarFiles = modsFolder.listFiles((dir, name) -> name.endsWith(".jar"));
         if (jarFiles != null) {
             for (File jarFile : jarFiles) {
                 mods.add(jarFile.getName());

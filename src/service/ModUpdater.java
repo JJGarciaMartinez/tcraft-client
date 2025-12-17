@@ -120,7 +120,7 @@ public class ModUpdater {
 
         // 3. Delete outdated files
         logger.accept("--- Verificando archivos antiguos ---");
-        File[] localFiles = modsFolder.listFiles((_, name) -> name.endsWith(".jar"));
+        File[] localFiles = modsFolder.listFiles((dir, name) -> name.endsWith(".jar"));
         if (localFiles != null) {
             for (File archivo : localFiles) {
                 boolean existInRemote = false;

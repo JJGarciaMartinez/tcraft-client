@@ -32,3 +32,7 @@ bin/
 ### IntelliJ IDEA ###
 .idea/
 /.idea
+
+### Installers ###
+/installer
+installer/
