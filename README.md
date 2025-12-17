@@ -65,6 +65,38 @@ The application uses a **Model-Service-UI** architecture:
 - **Concurrency**: Background threading for download operations
 - **Cross-platform**: Supports Windows, macOS, and Linux
 
+## Development Setup
+
+### Running from IntelliJ IDEA
+
+After compiling in IntelliJ, you need to copy assets to the output directory:
+
+```bash
+./copy-assets.sh
+```
+
+Then run the `Main` class normally from IntelliJ.
+
+**Why?** IntelliJ doesn't maintain the `assets/` folder structure when copying resources. The script ensures assets are in the correct location.
+
+For automatic execution, add `copy-assets.sh` as a "Before launch" task in Run Configuration.
+
+### Building JAR
+
+```bash
+./build-jar.sh
+```
+
+This creates `dist/TCraftClient.jar` with all dependencies and resources correctly packaged.
+
+### Creating Installer
+
+```bash
+./build-installer.sh
+```
+
+Creates platform-specific installers (DMG for macOS, EXE for Windows, DEB for Linux).
+
 ## Configuration
 
 The mod manifest URL is configured in `AppConfig.java`:

@@ -5,6 +5,7 @@ import config.AssetPaths;
 import service.FileSystemService;
 import service.SystemInfoService;
 import util.FontLoader;
+import util.ImageLoader;
 
 import javax.swing.*;
 import java.awt.*;
@@ -47,9 +48,7 @@ public class HeaderPanel extends JPanel {
         bannerPanel.setOpaque(false);
 
         // Load and scale the banner image
-        ImageIcon originalBanner = new ImageIcon(AssetPaths.MINECRAFT_TITLE);
-        Image scaledImage = originalBanner.getImage().getScaledInstance(400, -1, Image.SCALE_SMOOTH);
-        ImageIcon scaledIcon = new ImageIcon(scaledImage);
+        ImageIcon scaledIcon = ImageLoader.loadScaledImageIcon(AssetPaths.MINECRAFT_TITLE, 400, -1);
         JLabel labelBanner = new JLabel(scaledIcon);
         labelBanner.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -78,9 +77,7 @@ public class HeaderPanel extends JPanel {
 
         // Add system info labels
         String osName = SystemInfoService.getOS();
-        ImageIcon systemIconOg = new ImageIcon(AssetPaths.SYSTEM_ICON);
-        Image systemImg = systemIconOg.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
-        ImageIcon systemIcon = new ImageIcon(systemImg);
+        ImageIcon systemIcon = ImageLoader.loadScaledImageIcon(AssetPaths.SYSTEM_ICON, 16, 16);
         JLabel osLabel = new JLabel(" Sistema: " + osName);
         osLabel.setIcon(systemIcon);
         osLabel.setFont(normalMinecraftFont);
@@ -158,9 +155,7 @@ public class HeaderPanel extends JPanel {
      *             using the icon path associated with the corresponding {@link StatusType}.
      */
     public void setStatus(StatusType type) {
-        ImageIcon icon = new ImageIcon(type.getIconPath());
-        Image scaledImage = icon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
-        ImageIcon scaledIcon = new ImageIcon(scaledImage);
+        ImageIcon scaledIcon = ImageLoader.loadScaledImageIcon(type.getIconPath(), 16, 16);
         setStatusIcon(scaledIcon);
     }
 
