@@ -5,7 +5,7 @@
 
 APP_NAME="TCraft Client"
 APP_VERSION="1.0.0"
-VENDOR="TCraft Team"
+VENDOR="ModInstallerCraft"
 MAIN_CLASS="Main"
 JAR_FILE="dist/TCraftClient.jar"
 

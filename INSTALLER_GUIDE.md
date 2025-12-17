@@ -82,8 +82,6 @@ The installer supports custom icons but they are **optional**. The script will a
 
 If icons are not found, the installer will build successfully using the default Java application icon.
 
-**To create custom icons**, see the [ICON_GUIDE.md](ICON_GUIDE.md) for detailed instructions.
-
 ## Troubleshooting
 
 ### "command not found: jpackage"
