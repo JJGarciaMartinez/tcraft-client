@@ -97,6 +97,31 @@ This creates `dist/TCraftClient.jar` with all dependencies and resources correct
 
 Creates platform-specific installers (DMG for macOS, EXE for Windows, DEB for Linux).
 
+## System Requirements
+
+### For End Users (Non-Technical)
+
+- **Java 14 or higher** (Download from [adoptium.net](https://adoptium.net/))
+- **Supported Operating Systems:**
+  - Windows 7, 8, 10, 11
+  - macOS 10.13 (High Sierra) or later
+  - Linux (any modern distribution)
+- **Internet connection** (for downloading mods)
+- **Minecraft installed** (the app auto-detects your installation)
+- **~100 MB free disk space**
+
+**Check if you have Java:**
+```bash
+java -version
+```
+If you see version 14 or higher, you're good to go!
+
+### For Developers
+
+- Java Development Kit (JDK) 14+
+- IntelliJ IDEA or any Java IDE
+- macOS: Xcode Command Line Tools (for building installers)
+
 ## Configuration
 
 The mod manifest URL is configured in `AppConfig.java`:

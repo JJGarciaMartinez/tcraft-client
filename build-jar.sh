@@ -3,7 +3,23 @@
 # TCraft Client - JAR Build Script
 # Creates an executable JAR file from compiled classes
 
-echo "Building TCraft Client JAR..."
+# Load version from version.properties
+if [ ! -f "version.properties" ]; then
+    echo "Error: version.properties not found"
+    exit 1
+fi
+
+# Read properties from file
+APP_VERSION=$(grep '^app.version=' version.properties | cut -d'=' -f2)
+APP_NAME=$(grep '^app.name=' version.properties | cut -d'=' -f2)
+
+# Validate that version was loaded
+if [ -z "$APP_VERSION" ] || [ -z "$APP_NAME" ]; then
+    echo "Error: Could not read app.version or app.name from version.properties"
+    exit 1
+fi
+
+echo "Building $APP_NAME v$APP_VERSION..."
 
 # Create dist directory if it doesn't exist
 mkdir -p dist
@@ -11,6 +27,10 @@ mkdir -p dist
 # Copy assets to production output
 echo "Copying assets..."
 cp -r assets out/production/
+
+# Copy version.properties to production output (to be included in JAR)
+echo "Copying version.properties..."
+cp version.properties out/production/
 
 # Create JAR file
 echo "Creating JAR..."
@@ -96,4 +116,31 @@ echo "  • TCraft Client.command (macOS)"
 echo "  • TCraft Client.bat (Windows)"
 echo "  • TCraft Client.sh (Linux)"
 echo "  • README.txt (instructions)"
+echo ""
+
+# Create ZIP archive
+ZIP_NAME="${APP_NAME}-${APP_VERSION}.zip"
+echo "Creating distribution ZIP: $ZIP_NAME"
+
+# Remove old ZIP if exists
+rm -f "dist/$ZIP_NAME"
+
+# Create ZIP from dist directory contents
+cd dist || exit 1
+zip -r "$ZIP_NAME" * -x "*.zip"
+cd .. || exit 1
+
+# Move ZIP to project root
+mv "dist/$ZIP_NAME" "$ZIP_NAME"
+
+if [ -f "$ZIP_NAME" ]; then
+    echo "✓ ZIP created successfully: $ZIP_NAME"
+    echo ""
+    echo "Ready to distribute:"
+    echo "  • $ZIP_NAME (all platforms)"
+else
+    echo "✗ Failed to create ZIP"
+    exit 1
+fi
+
 

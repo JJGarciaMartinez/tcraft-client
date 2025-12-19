@@ -36,3 +36,7 @@ bin/
 ### Installers ###
 /installer
 installer/
+
+### Distribution Files ###
+*.zip
+

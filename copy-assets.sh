@@ -1,16 +1,16 @@
 #!/bin/bash
-# Script para copiar assets al directorio de salida de IntelliJ
-# Ejecutar después de compilar o usar como pre-build task
+# Script to copy assets to IntelliJ output directory
+# Run after compiling or use as pre-build task
 
 OUTPUT_DIR="out/production/tcraft-client"
 
-echo "Copiando assets al directorio de salida..."
+echo "Copying assets to output directory..."
 
-# Crear directorio de assets si no existe
+# Create assets directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR/assets"
 
-# Copiar todos los assets
+# Copy all assets
 cp -r assets/* "$OUTPUT_DIR/assets/"
 
-echo "✓ Assets copiados correctamente a $OUTPUT_DIR/assets/"
+echo "✓ Assets successfully copied to $OUTPUT_DIR/assets/"
 
