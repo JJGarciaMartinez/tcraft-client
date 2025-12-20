@@ -5,6 +5,9 @@
 
 set -e
 
+# Change to project root directory
+cd "$(dirname "$0")/../.."
+
 # ANSI Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -139,4 +142,5 @@ echo ""
 echo -e "${YELLOW}[INFO]${RESET} Cleaning up..."
 hdiutil detach /tmp/tcraft_mount 2>/dev/null
 echo -e "${GREEN}[OK]${RESET} Done"
+
 

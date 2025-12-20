@@ -2,11 +2,30 @@
 
 This guide explains the complete workflow for creating TCraft Client builds, from version updates to generating native installers.
 
+> **💻 Scripts Organization:** All scripts are organized by shell type in `scripts/bash/` and `scripts/powershell/` directories.
+
+## Platform-Specific Scripts
+
+All scripts are available for both Bash and PowerShell:
+
+| Task | Mac/Linux | Windows PowerShell |
+|------|-----------|-------------------|
+| Update version | `./scripts/bash/update-version.sh` | `.\scripts\powershell\update-version.ps1` |
+| Compile sources | `./scripts/bash/compile-sources.sh` | `.\scripts\powershell\compile-sources.ps1` |
+| Build JAR | `./scripts/bash/build-jar.sh` | `.\scripts\powershell\build-jar.ps1` |
+| Build installer | `./scripts/bash/build-installer.sh` | `.\scripts\powershell\build-installer.ps1` |
+| Verify JAR | `./scripts/bash/verify-jar.sh` | `.\scripts\powershell\verify-jar.ps1` |
+| Diagnose app | `./scripts/bash/diagnose-app.sh` | _(Not available - not needed on Windows)_ |
+
+**Note:** All scripts automatically navigate to the project root directory, so they work correctly from their subdirectories.
+
+**Windows-specific:** The `build-installer.ps1` script automatically installs WiX Toolset if it's not present on your system. This dependency is required to create MSI installers on Windows.
+
 ## Complete Workflow
 
 ```
 1. Update Version → 2. Clean Compile → 3. Build JAR → 4. Build Installer
-   (update-version.sh)  (compile-sources.sh)  (build-jar.sh)  (build-installer.sh)
+   (update-version)     (compile-sources)     (build-jar)     (build-installer)
 ```
 
 ---
@@ -49,49 +68,49 @@ This script centralizes version management by automatically modifying the `versi
 
 #### Usage:
 ```bash
-./update-version.sh <new-version> [numeric-version]
+./scripts/bash/update-version.sh <new-version> [numeric-version]
 ```
 
 #### Examples:
 
 **Beta release (recommended):**
 ```bash
-./update-version.sh b26.1.0
+./scripts/bash/update-version.sh b26.1.0
 # Auto-detects numeric version: 26.1.0
 ```
 
 **Beta with fix:**
 ```bash
-./update-version.sh b26.1.1
+./scripts/bash/update-version.sh b26.1.1
 # Auto-detects numeric version: 26.1.1
 ```
 
 **Explicit numeric version:**
 ```bash
-./update-version.sh b26.1.0 26.1.0
+./scripts/bash/update-version.sh b26.1.0 26.1.0
 ```
 
 **Stable release:**
 ```bash
-./update-version.sh 26.1.0
+./scripts/bash/update-version.sh 26.1.0
 # Both versions set to: 26.1.0
 ```
 
 **Alpha release:**
 ```bash
-./update-version.sh a26.1.0
+./scripts/bash/update-version.sh a26.1.0
 # Auto-detects numeric version: 26.1.0
 ```
 
 **Release candidate:**
 ```bash
-./update-version.sh rc26.1.0
+./scripts/bash/update-version.sh rc26.1.0
 # Auto-detects numeric version: 26.1.0
 ```
 
 **Second release of the year:**
 ```bash
-./update-version.sh b26.2.0
+./scripts/bash/update-version.sh b26.2.0
 # Auto-detects numeric version: 26.2.0
 ```
 
@@ -114,7 +133,7 @@ This script centralizes version management by automatically modifying the `versi
      - build-installer.sh (installer version: 26.1.0)
    
    Rebuild your project to see changes:
-     ./build-jar.sh && ./build-installer.sh
+     ./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh
    ```
 
 #### Why is this critical?
@@ -166,7 +185,7 @@ The `dist/` directory contains the executable JAR version of your application, i
 
 ### Running the Build:
 ```bash
-./build-jar.sh
+./scripts/bash/build-jar.sh
 ```
 
 ### What does `build-jar.sh` do?
@@ -251,7 +270,7 @@ The `installer/` directory contains the professional native installer for end-us
 
 ### Running the Build:
 ```bash
-./build-installer.sh
+./scripts/bash/build-installer.sh
 ```
 
 ### What does `build-installer.sh` do?
@@ -272,27 +291,76 @@ The `installer/` directory contains the professional native installer for end-us
 
 3. **Detects** your platform and prepares platform-specific arguments:
    - **macOS**: Generates `.dmg` with `.icns` icon
-   - **Windows**: Generates `.exe` with `.ico` icon
+   - **Windows**: Generates `.msi` with `.ico` icon (requires WiX Toolset - installed automatically)
    - **Linux**: Generates `.deb` with `.png` icon
 
-4. **Runs jpackage** to create the native installer:
+4. **Windows-specific**: Checks for WiX Toolset and installs it automatically if not found:
+   ```powershell
+   # PowerShell script attempts two installation methods:
+   # 1. Via .NET tool: dotnet tool install --global wix
+   # 2. Direct download: Downloads WiX 3.11 binaries from GitHub
+   ```
+   **Note:** On Windows, the script handles all WiX installation automatically. No manual setup required.
+
+5. **Builds the jpackage command dynamically**:
+   
+   The script doesn't execute jpackage directly. Instead, it builds the command dynamically:
+   
+   ```bash
+   # Bash: Constructs command in a variable
+   JPACKAGE_CMD="jpackage \
+       --input dist \
+       --name \"$APP_NAME\" \
+       --main-jar TCraftClient.jar \
+       ..."
+   
+   # Adds conditional options
+   if [ -f "assets/icon.icns" ]; then
+       JPACKAGE_CMD="$JPACKAGE_CMD --icon assets/icon.icns"
+   fi
+   
+   # Executes the command
+   eval $JPACKAGE_CMD
+   ```
+   
+   **PowerShell approach:**
+   ```powershell
+   # PowerShell: Uses an array of arguments
+   $jpackageArgs = @(
+       "--input", "dist",
+       "--name", $APP_NAME,
+       "--main-jar", "TCraftClient.jar",
+       ...
+   )
+   
+   # Executes with call operator
+   & jpackage $jpackageArgs
+   ```
+   
+   **Script locations:**
+   - **bash**: macOS (lines 83-110), Linux (lines 142-165), Windows (lines 183-206)
+   - **PowerShell**: lines 193-220
+
+6. **Runs jpackage** with the constructed command:
    ```bash
    jpackage \
      --input dist \
      --name "$APP_NAME" \
      --main-jar TCraftClient.jar \
      --main-class Main \
-     --type dmg \
+     --type dmg \                           # or 'msi' on Windows
      --app-version "$APP_VERSION_NUMERIC" \    # Uses numeric version!
      --vendor "$VENDOR" \
-     --icon assets/icon.icns \
+     --icon assets/icon.icns \              # or .ico on Windows
      --dest installer
    ```
    **Critical:** The `--app-version` flag must receive a numeric-only version. This is why `app.version.numeric` exists.
 
-5. **Renames** the installer to include the display version (with phase identifier):
+7. **Renames** the installer to include the display version (with phase identifier):
    ```bash
    mv "installer/TCraft Client-26.1.0.dmg" "installer/TCraft Client-b26.1.0.dmg"
+   # or on Windows:
+   # Move-Item "installer\TCraftClient-26.1.0.msi" "installer\TCraftClient-b26.1.0.msi"
    ```
    **Note:** Installer filenames use the display version (`app.version`) for easy visual identification of beta/alpha releases.
 
@@ -306,11 +374,11 @@ installer/
 
 ### Installers by Platform:
 
-| Platform | Format | Extension | Required Icon |
-|----------|--------|-----------|---------------|
-| macOS    | DMG    | `.dmg`    | `assets/icon.icns` |
-| Windows  | EXE    | `.exe`    | `assets/icon.ico` |
-| Linux    | Debian | `.deb`    | `assets/icon.png` |
+| Platform | Format | Extension | Required Icon | Notes |
+|----------|--------|-----------|---------------|-------|
+| macOS    | DMG    | `.dmg`    | `assets/icon.icns` | Requires Xcode Command Line Tools |
+| Windows  | MSI    | `.msi`    | `assets/icon.ico` | WiX Toolset (auto-installed by script) |
+| Linux    | Debian | `.deb`    | `assets/icon.png` | Standard build tools |
 
 ### When to use installer/?
 
@@ -326,13 +394,13 @@ installer/
 
 ```bash
 # 1. Update version (auto-detects numeric version)
-./update-version.sh b26.1.0
+./scripts/bash/update-version.sh b26.1.0
 
 # 2. Clean compile with assets
-./compile-sources.sh
+./scripts/bash/compile-sources.sh
 
 # 3. Create JAR for testing
-./build-jar.sh
+./scripts/bash/build-jar.sh
 
 # 4. Test the JAR
 java -jar dist/TCraftClient.jar
@@ -342,49 +410,54 @@ java -jar dist/TCraftClient.jar
 #    - TCraft Client-b26.1.0.zip (for distribution with phase identifier)
 
 # 6. Optionally, create production installer
-./build-installer.sh
+./scripts/bash/build-installer.sh
 
 # 7. Files ready for distribution:
 ls -la *.zip installer/
 # TCraft Client-b26.1.0.zip          <- Cross-platform ZIP (displays b26.1.0)
-# installer/TCraft Client-b26.1.0.dmg <- Native installer (displays b26.1.0)
+# installer/TCraft Client-b26.1.0.dmg <- Native installer macOS (displays b26.1.0)
+# or on Windows:
+# installer\TCraftClient-b26.1.0.msi <- Native installer Windows (displays b26.1.0)
 ```
 
 ### Example: Creating stable version 26.1.0 (Production release)
 
 ```bash
 # 1. Update version (both versions will be 26.1.0)
-./update-version.sh 26.1.0
+./scripts/bash/update-version.sh 26.1.0
 
 # 2. Clean compile
-./compile-sources.sh
+./scripts/bash/compile-sources.sh
 
 # 3-7. Same steps as above...
 
 # Result files:
 # TCraft Client-26.1.0.zip          <- Cross-platform ZIP
-# installer/TCraft Client-26.1.0.dmg <- Native installer
+# installer/TCraft Client-26.1.0.dmg <- Native installer (macOS)
+# or on Windows:
+# installer\TCraftClient-26.1.0.msi <- Native installer (Windows)
 ```
 
 ### Example: Creating patch fix 26.1.1
 
 ```bash
 # 1. Update version for bug fix
-./update-version.sh 26.1.1
+./scripts/bash/update-version.sh 26.1.1
 
 # 2. Clean compile and build
-./compile-sources.sh
-./build-jar.sh && ./build-installer.sh
+./scripts/bash/compile-sources.sh
+./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh
 
-# Result: TCraft Client-26.1.1.dmg (patch release)
+# Result: TCraft Client-26.1.1.dmg (patch release on macOS)
+# or on Windows: TCraftClient-26.1.1.msi (patch release on Windows)
 ```
 
 ### Quick Build (Complete Pipeline):
 ```bash
-./update-version.sh b26.1.0 && \
-./compile-sources.sh && \
-./build-jar.sh && \
-./build-installer.sh
+./scripts/bash/update-version.sh b26.1.0 && \
+./scripts/bash/compile-sources.sh && \
+./scripts/bash/build-jar.sh && \
+./scripts/bash/build-installer.sh
 ```
 
 This single command:
@@ -399,7 +472,10 @@ This single command:
 
 - **Java 14+** (You have Java 21)
 - **Compiled code** in `out/production/`
-- **macOS**: Xcode Command Line Tools
+- **Platform-specific requirements:**
+  - **macOS**: Xcode Command Line Tools
+  - **Windows**: WiX Toolset (installed automatically by build-installer.ps1)
+  - **Linux**: Standard build tools
 - **Icons** (optional but recommended):
   - `assets/icon.icns` - macOS (512x512px)
   - `assets/icon.ico` - Windows (256x256px)
@@ -448,7 +524,7 @@ cat version.properties
 # Invalid: app.version.numeric=b26.1.0
 
 # Fix by running:
-./update-version.sh b26.1.0  # Will auto-detect numeric version
+./scripts/bash/update-version.sh b26.1.0  # Will auto-detect numeric version
 
 # Or manually edit version.properties to add:
 # app.version.numeric=26.1.0
@@ -482,7 +558,7 @@ jar tf dist/TCraftClient.jar | grep -E "(assets|version.properties)"
 # Clean completely and rebuild
 rm -rf out dist installer
 # Compile in IntelliJ (Build → Rebuild Project)
-./build-jar.sh && ./build-installer.sh
+./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh
 ```
 
 ### Installer won't open on macOS (Security)
@@ -499,7 +575,7 @@ To avoid this, sign the app with an Apple Developer certificate.
 ### ZIP Distribution (Cross-platform)
 ```bash
 # 1. Create the JAR and ZIP
-./build-jar.sh
+./scripts/bash/build-jar.sh
 
 # 2. The ZIP will be in the project root
 ls -la *.zip
@@ -527,14 +603,15 @@ ls -la *.zip
 ### GitHub Releases
 ```bash
 # 1. Create the installer
-./build-installer.sh
+./scripts/bash/build-installer.sh
 
 # 2. Upload to GitHub Releases
 # - Go to your repository → Releases → Draft a new release
 # - Tag: v26.1.0 (use numeric version for consistency)
 # - Title: TCraft Client b26.1.0 (use display version)
 # - Attach files:
-#   - installer/TCraft Client-b26.1.0.dmg (native installer)
+#   - installer/TCraft Client-b26.1.0.dmg (native installer for macOS)
+#   - installer/TCraftClient-b26.1.0.msi (native installer for Windows)
 #   - TCraft Client-b26.1.0.zip (cross-platform JAR)
 ```
 

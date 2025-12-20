@@ -37,7 +37,7 @@ echo ""
 
 # Compile sources first
 echo -e "${YELLOW}[1/5] Compiling sources...${RESET}"
-./compile-sources.sh
+./scripts/bash/compile-sources.sh
 if [ $? -ne 0 ]; then
     echo -e "${RED}[ERROR]${RESET} Compilation failed, cannot build JAR"
     exit 1
@@ -192,5 +192,6 @@ echo -e "  ${CYAN}1.${RESET} Test locally:        ${BLUE}java -jar dist/TCraftCl
 echo -e "  ${CYAN}2.${RESET} Build installer:     ${BLUE}./build-installer.sh${RESET}"
 echo -e "  ${CYAN}3.${RESET} Distribute package:  ${BLUE}${ZIP_NAME}${RESET}"
 echo ""
+
 
 

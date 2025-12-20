@@ -6,6 +6,9 @@
 
 set -e  # Exit on any error
 
+# Change to project root directory
+cd "$(dirname "$0")/../.."
+
 # ANSI Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -93,4 +96,5 @@ echo ""
 echo -e "  ${CYAN}4.${RESET} ${BOLD}Complete build pipeline:${RESET}"
 echo -e "     ${BLUE}./build-jar.sh && ./build-installer.sh${RESET}"
 echo ""
+
 

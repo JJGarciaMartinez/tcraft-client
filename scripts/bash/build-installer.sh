@@ -62,7 +62,7 @@ echo ""
 # Check if JAR exists
 if [ ! -f "$JAR_FILE" ]; then
     echo -e "${YELLOW}[WARN]${RESET} JAR file not found, building..."
-    ./build-jar.sh
+    ./scripts/bash/build-jar.sh
     echo ""
 fi
 
@@ -131,7 +131,7 @@ case "$(uname -s)" in
             exit 1
         fi
         ;;
-    
+
     Linux*)
         echo -e "${BOLD}Platform:${RESET} Linux"
         echo -e "${BOLD}Package:${RESET}  .deb installer"
@@ -174,7 +174,7 @@ case "$(uname -s)" in
             exit 1
         fi
         ;;
-    
+
     MINGW*|MSYS*|CYGWIN*)
         echo -e "${BOLD}Platform:${RESET} Windows"
         echo -e "${BOLD}Package:${RESET}  .exe installer"
@@ -219,7 +219,7 @@ case "$(uname -s)" in
             exit 1
         fi
         ;;
-    
+
     *)
         echo -e "${YELLOW}[WARN]${RESET} Unknown platform, creating generic app-image..."
         jpackage \
@@ -241,3 +241,4 @@ echo -e "${BOLD}${GREEN}========================================================
 echo ""
 echo -e "${BOLD}Output:${RESET} ${BLUE}./installer/${RESET}"
 echo ""
+

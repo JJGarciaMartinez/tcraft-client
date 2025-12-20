@@ -233,8 +233,9 @@ else
     fi
     echo ""
     echo "Please review the messages above."
-    echo -e "Run ${BLUE}./build-jar.sh${RESET} to rebuild the JAR."
+    echo -e "Run ${BLUE}./scripts/bash/build-jar.sh${RESET} to rebuild the JAR."
     echo ""
     exit 1
 fi
+
 

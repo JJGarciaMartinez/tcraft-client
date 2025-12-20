@@ -6,6 +6,9 @@
 
 set -e
 
+# Change to project root directory
+cd "$(dirname "$0")/../.."
+
 # ANSI Color codes
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -22,4 +25,5 @@ mkdir -p "$OUTPUT_DIR/assets"
 cp -r assets/* "$OUTPUT_DIR/assets/"
 
 echo -e "${GREEN}[OK]${RESET} Assets successfully copied to ${BLUE}${OUTPUT_DIR}/assets/${RESET}"
+
 

@@ -71,31 +71,71 @@ The application uses a **Model-Service-UI** architecture:
 
 After compiling in IntelliJ, you need to copy assets to the output directory:
 
+**Mac/Linux:**
 ```bash
-./copy-assets.sh
+./scripts/bash/copy-assets.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\powershell\copy-assets.ps1
 ```
 
 Then run the `Main` class normally from IntelliJ.
 
 **Why?** IntelliJ doesn't maintain the `assets/` folder structure when copying resources. The script ensures assets are in the correct location.
 
-For automatic execution, add `copy-assets.sh` as a "Before launch" task in Run Configuration.
+For automatic execution, add the appropriate script as a "Before launch" task in Run Configuration.
 
 ### Building JAR
 
+**Mac/Linux:**
 ```bash
-./build-jar.sh
+./scripts/bash/build-jar.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\powershell\build-jar.ps1
 ```
 
 This creates `dist/TCraftClient.jar` with all dependencies and resources correctly packaged.
 
 ### Creating Installer
 
+**Mac/Linux:**
 ```bash
-./build-installer.sh
+./scripts/bash/build-installer.sh
 ```
 
-Creates platform-specific installers (DMG for macOS, EXE for Windows, DEB for Linux).
+**Windows (PowerShell):**
+```powershell
+.\scripts\powershell\build-installer.ps1
+```
+
+Creates platform-specific installers:
+- **macOS**: `.dmg` installer
+- **Windows**: `.msi` installer (WiX Toolset - installed automatically if not present)
+- **Linux**: `.deb` package
+
+> **Note for Windows**: The script automatically installs WiX Toolset if it's not already available on your system. This is required to create MSI installers.
+
+### All Available Scripts
+
+| Task | Mac/Linux | Windows PowerShell |
+|------|-----------|-------------------|
+| Copy assets | `./scripts/bash/copy-assets.sh` | `.\scripts\powershell\copy-assets.ps1` |
+| Compile sources | `./scripts/bash/compile-sources.sh` | `.\scripts\powershell\compile-sources.ps1` |
+| Build JAR | `./scripts/bash/build-jar.sh` | `.\scripts\powershell\build-jar.ps1` |
+| Build installer | `./scripts/bash/build-installer.sh` | `.\scripts\powershell\build-installer.ps1` |
+| Verify JAR | `./scripts/bash/verify-jar.sh` | `.\scripts\powershell\verify-jar.ps1` |
+| Update version | `./scripts/bash/update-version.sh` | `.\scripts\powershell\update-version.ps1` |
+| Diagnose app | `./scripts/bash/diagnose-app.sh` | _(Not needed on Windows)_ |
+
+### Documentation
+
+- **[BUILD_GUIDE.md](BUILD_GUIDE.md)**: Complete build and distribution guide
+- **[VERSION_GUIDE.md](VERSION_GUIDE.md)**: Versioning system explained
 
 ## System Requirements
 
@@ -120,7 +160,10 @@ If you see version 16 or higher, you're good to go!
 
 - Java Development Kit (JDK) 16+
 - IntelliJ IDEA or any Java IDE
-- macOS: Xcode Command Line Tools (for building installers)
+- **Platform-specific requirements:**
+  - **macOS**: Xcode Command Line Tools (for building installers)
+  - **Windows**: WiX Toolset (installed automatically by build-installer.ps1)
+  - **Linux**: Standard build tools
 
 ## Configuration
 
