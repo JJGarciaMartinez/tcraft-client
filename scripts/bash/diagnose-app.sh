@@ -5,6 +5,9 @@
 
 set -e
 
+# Ensure all scripts have execute permissions
+source "$(dirname "$0")/ensure-permissions.sh"
+
 # Change to project root directory
 cd "$(dirname "$0")/../.."
 

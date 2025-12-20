@@ -5,6 +5,12 @@
 
 set -e
 
+# Ensure all scripts have execute permissions
+source "$(dirname "$0")/ensure-permissions.sh"
+
+# Change to project root directory
+cd "$(dirname "$0")/../.."
+
 # ANSI Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'

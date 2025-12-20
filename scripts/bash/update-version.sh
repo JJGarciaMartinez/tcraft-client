@@ -5,6 +5,12 @@
 
 set -e
 
+# Ensure all scripts have execute permissions
+source "$(dirname "$0")/ensure-permissions.sh"
+
+# Change to project root directory
+cd "$(dirname "$0")/../.."
+
 # ANSI Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -31,8 +37,8 @@ NEW_VERSION_NUMERIC="${2:-$NEW_VERSION}"
 
 # Extract numeric version if not provided and version starts with letter
 if [ "$NEW_VERSION_NUMERIC" == "$NEW_VERSION" ] && [[ "$NEW_VERSION" =~ ^[a-zA-Z] ]]; then
-    # Remove leading letters (like 'b', 'a', 'rc') from version
-    NEW_VERSION_NUMERIC=$(echo "$NEW_VERSION" | sed 's/^[a-zA-Z]*//')
+    # Remove leading letters and separators (like 'beta-', 'alpha-', 'rc-') from version
+    NEW_VERSION_NUMERIC=$(echo "$NEW_VERSION" | sed 's/^[a-zA-Z]*-*//')
     echo -e "${CYAN}[INFO]${RESET} Auto-detected numeric version: ${BOLD}${NEW_VERSION_NUMERIC}${RESET}"
 fi
 

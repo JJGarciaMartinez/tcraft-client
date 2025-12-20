@@ -6,6 +6,9 @@
 
 set -e  # Exit on any error
 
+# Ensure all scripts have execute permissions
+source "$(dirname "$0")/ensure-permissions.sh"
+
 # Change to project root directory
 cd "$(dirname "$0")/../.."
 
@@ -66,7 +69,7 @@ echo ""
 
 # Step 4: Copy assets
 echo -e "${YELLOW}[4/4] Copying resource assets...${RESET}"
-./copy-assets.sh
+./scripts/bash/copy-assets.sh
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}[OK]${RESET} Assets copied successfully"
 else
@@ -88,13 +91,13 @@ echo -e "  ${CYAN}1.${RESET} ${BOLD}Test locally:${RESET}"
 echo -e "     Run ${BLUE}Main.class${RESET} from IntelliJ IDEA"
 echo ""
 echo -e "  ${CYAN}2.${RESET} ${BOLD}Build JAR package:${RESET}"
-echo -e "     ${BLUE}./build-jar.sh${RESET}"
+echo -e "     ${BLUE}./scripts/bash/build-jar.sh${RESET}"
 echo ""
 echo -e "  ${CYAN}3.${RESET} ${BOLD}Build native installer:${RESET}"
-echo -e "     ${BLUE}./build-installer.sh${RESET}"
+echo -e "     ${BLUE}./scripts/bash/build-installer.sh${RESET}"
 echo ""
 echo -e "  ${CYAN}4.${RESET} ${BOLD}Complete build pipeline:${RESET}"
-echo -e "     ${BLUE}./build-jar.sh && ./build-installer.sh${RESET}"
+echo -e "     ${BLUE}./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh${RESET}"
 echo ""
 
 

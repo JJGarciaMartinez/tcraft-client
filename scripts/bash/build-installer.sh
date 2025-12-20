@@ -5,6 +5,12 @@
 
 set -e
 
+# Ensure all scripts have execute permissions
+source "$(dirname "$0")/ensure-permissions.sh"
+
+# Change to project root directory
+cd "$(dirname "$0")/../.."
+
 # ANSI Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -107,12 +113,16 @@ case "$(uname -s)" in
         # Execute command
         echo ""
         echo -e "${BOLD}Running jpackage...${RESET}"
-        eval $JPACKAGE_CMD > /dev/null 2>&1
+        eval $JPACKAGE_CMD
 
         if [ $? -eq 0 ]; then
-            # Rename installer to use display version (with phase identifier)
+            # Rename installer to use display version (with phase identifier like beta-, alpha-, etc)
+            # jpackage creates file with numeric version, we rename to full version string
             if [ -f "installer/$APP_NAME-$APP_VERSION_NUMERIC.dmg" ]; then
-                mv "installer/$APP_NAME-$APP_VERSION_NUMERIC.dmg" "installer/$APP_NAME-$APP_VERSION.dmg"
+                # Only rename if versions differ (e.g., beta-26.1.3 vs 26.1.3)
+                if [ "$APP_VERSION" != "$APP_VERSION_NUMERIC" ]; then
+                    mv "installer/$APP_NAME-$APP_VERSION_NUMERIC.dmg" "installer/$APP_NAME-$APP_VERSION.dmg"
+                fi
                 DMG_SIZE=$(ls -lh "installer/$APP_NAME-$APP_VERSION.dmg" | awk '{print $5}')
                 echo -e "${GREEN}[OK]${RESET} macOS installer created: ${BLUE}installer/$APP_NAME-$APP_VERSION.dmg${RESET} (${CYAN}${DMG_SIZE}${RESET})"
             else
