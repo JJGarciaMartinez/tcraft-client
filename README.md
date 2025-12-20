@@ -101,7 +101,7 @@ Creates platform-specific installers (DMG for macOS, EXE for Windows, DEB for Li
 
 ### For End Users (Non-Technical)
 
-- **Java 14 or higher** (Download from [adoptium.net](https://adoptium.net/))
+- **Java 16 or higher** (Download from [adoptium.net](https://adoptium.net/))
 - **Supported Operating Systems:**
   - Windows 7, 8, 10, 11
   - macOS 10.13 (High Sierra) or later
@@ -114,11 +114,11 @@ Creates platform-specific installers (DMG for macOS, EXE for Windows, DEB for Li
 ```bash
 java -version
 ```
-If you see version 14 or higher, you're good to go!
+If you see version 16 or higher, you're good to go!
 
 ### For Developers
 
-- Java Development Kit (JDK) 14+
+- Java Development Kit (JDK) 16+
 - IntelliJ IDEA or any Java IDE
 - macOS: Xcode Command Line Tools (for building installers)
 

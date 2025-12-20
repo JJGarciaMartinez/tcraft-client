@@ -53,7 +53,7 @@ public class HeaderPanel extends JPanel {
         labelBanner.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Set up the subtitle label
-        JLabel subtitleLabel = new JLabel("Mod & Config Manager - v" + AppConfig.VERSION_APP);
+        JLabel subtitleLabel = new JLabel("Mod & Config Manager - " + AppConfig.VERSION_APP);
         subtitleLabel.setFont(smallMinecraftFont);
         subtitleLabel.setForeground(new Color(180, 180, 180));
         subtitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);

@@ -5,8 +5,8 @@ This guide explains the complete workflow for creating TCraft Client builds, fro
 ## Complete Workflow
 
 ```
-1. Update Version → 2. Compile Code → 3. Build JAR → 4. Build Installer
-   (update-version.sh)   (IntelliJ IDEA)    (build-jar.sh)   (build-installer.sh)
+1. Update Version → 2. Clean Compile → 3. Build JAR → 4. Build Installer
+   (update-version.sh)  (compile-sources.sh)  (build-jar.sh)  (build-installer.sh)
 ```
 
 ---
@@ -328,7 +328,8 @@ installer/
 # 1. Update version (auto-detects numeric version)
 ./update-version.sh b26.1.0
 
-# 2. Compile in IntelliJ (Build → Build Project)
+# 2. Clean compile with assets
+./compile-sources.sh
 
 # 3. Create JAR for testing
 ./build-jar.sh
@@ -355,10 +356,12 @@ ls -la *.zip installer/
 # 1. Update version (both versions will be 26.1.0)
 ./update-version.sh 26.1.0
 
-# 2-6. Same steps as above...
+# 2. Clean compile
+./compile-sources.sh
 
-# 7. Files ready for distribution:
-ls -la *.zip installer/
+# 3-7. Same steps as above...
+
+# Result files:
 # TCraft Client-26.1.0.zip          <- Cross-platform ZIP
 # installer/TCraft Client-26.1.0.dmg <- Native installer
 ```
@@ -369,16 +372,26 @@ ls -la *.zip installer/
 # 1. Update version for bug fix
 ./update-version.sh 26.1.1
 
-# 2-7. Same build process...
+# 2. Clean compile and build
+./compile-sources.sh
+./build-jar.sh && ./build-installer.sh
 
 # Result: TCraft Client-26.1.1.dmg (patch release)
 ```
 
-### Quick Build (JAR + Installer):
+### Quick Build (Complete Pipeline):
 ```bash
-./update-version.sh b26.1.0
-./build-jar.sh && ./build-installer.sh
+./update-version.sh b26.1.0 && \
+./compile-sources.sh && \
+./build-jar.sh && \
+./build-installer.sh
 ```
+
+This single command:
+1. Updates the version
+2. Compiles with clean output
+3. Builds the JAR and ZIP
+4. Creates the native installer
 
 ---
 

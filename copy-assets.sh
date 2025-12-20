@@ -1,6 +1,15 @@
 #!/bin/bash
-# Script to copy assets to IntelliJ output directory
+
+# TCraft Client - Asset Copy Script
+# Copies assets to IntelliJ output directory
 # Run after compiling or use as pre-build task
+
+set -e
+
+# ANSI Color codes
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RESET='\033[0m'
 
 OUTPUT_DIR="out/production/tcraft-client"
 
@@ -12,5 +21,5 @@ mkdir -p "$OUTPUT_DIR/assets"
 # Copy all assets
 cp -r assets/* "$OUTPUT_DIR/assets/"
 
-echo "✓ Assets successfully copied to $OUTPUT_DIR/assets/"
+echo -e "${GREEN}[OK]${RESET} Assets successfully copied to ${BLUE}${OUTPUT_DIR}/assets/${RESET}"
 

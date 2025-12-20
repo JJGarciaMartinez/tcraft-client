@@ -36,7 +36,10 @@ public class AppConfig {
             props.load(input);
 
             String version = props.getProperty("app.version", "unknown");
-            return "b-v" + version;
+            if(version.contains("a") | version.contains("b") | version.contains("rc")) {
+                version += " (test build)";
+            }
+            return version;
         } catch (Exception e) {
             System.err.println("Error loading version: " + e.getMessage());
             return "unknown";
