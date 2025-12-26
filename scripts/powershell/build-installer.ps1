@@ -15,6 +15,7 @@ $APP_VERSION = ($properties | Where-Object { $_ -match '^app.version=' }) -repla
 $APP_VERSION_NUMERIC = ($properties | Where-Object { $_ -match '^app.version.numeric=' }) -replace '^app.version.numeric=', ''
 $APP_NAME = ($properties | Where-Object { $_ -match '^app.name=' }) -replace '^app.name=', ''
 $VENDOR = ($properties | Where-Object { $_ -match '^app.vendor=' }) -replace '^app.vendor=', ''
+$WIN_UPGRADE_UUID = ($properties | Where-Object { $_ -match '^app.win.upgrade.uuid=' }) -replace '^app.win.upgrade.uuid=', ''
 
 # Validate that version was loaded
 if ([string]::IsNullOrEmpty($APP_VERSION)) {
@@ -203,6 +204,16 @@ $jpackageArgs = @(
     "--win-shortcut",
     "--win-menu-group", $APP_NAME
 )
+
+# Add Windows upgrade UUID if available (required for seamless updates)
+if (-not [string]::IsNullOrEmpty($WIN_UPGRADE_UUID)) {
+    $jpackageArgs += "--win-upgrade-uuid"
+    $jpackageArgs += $WIN_UPGRADE_UUID
+    Write-Host "[OK] Using Windows upgrade UUID: $WIN_UPGRADE_UUID" -ForegroundColor Green
+}
+else {
+    Write-Host "[WARN] win-upgrade-uuid not set, users will need to manually uninstall old versions" -ForegroundColor Yellow
+}
 
 # Add icon if it exists
 if (Test-Path "assets\icon.ico") {

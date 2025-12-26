@@ -90,14 +90,26 @@ public class ModUpdater {
 
         // 1. Detect or create mods folder
         File modsFolder = fileSystemService.getModsFolder();
-        logger.accept("Carpeta detectada: " + modsFolder);
+        logger.accept("Carpeta de mods detectada: " + modsFolder);
 
         if (!modsFolder.exists()) {
             boolean created = modsFolder.mkdirs();
             if (!created) {
                 throw new IOException("No se pudo crear la carpeta de mods: " + modsFolder);
             }
-            logger.accept("Carpeta creada.");
+            logger.accept("Carpeta de mods creada.");
+        }
+
+        // 1.1 Detect or create config folder
+        File configFolder = fileSystemService.getConfigFolder();
+        logger.accept("Carpeta de config detectada: " + configFolder);
+
+        if (!configFolder.exists()) {
+            boolean created = configFolder.mkdirs();
+            if (!created) {
+                throw new IOException("No se pudo crear la carpeta de config: " + configFolder);
+            }
+            logger.accept("Carpeta de config creada.");
         }
 
         // 2. Download manifest from the server
@@ -169,6 +181,18 @@ public class ModUpdater {
                         modInfoCallback.accept(mod);
                     }
                     logger.accept("OK: " + mod.name() + " (ya existe)");
+                }
+
+                // Download configuration file if it exists
+                if (mod.configUrl() != null && mod.configName() != null && !mod.configUrl().isEmpty() && !mod.configName().isEmpty()) {
+                    File configDestination = new File(configFolder, mod.configName());
+                    try {
+                        logger.accept("Descargando config: " + mod.configName());
+                        downloadService.downloadFile(mod.configUrl(), configDestination);
+                        logger.accept("Config completado: " + mod.configName());
+                    } catch (IOException configException) {
+                        logger.accept("Advertencia: No se pudo descargar el archivo de configuración " + mod.configName() + ": " + configException.getMessage());
+                    }
                 }
             } catch (IOException e) {
                 if (modInfoCallback != null) {

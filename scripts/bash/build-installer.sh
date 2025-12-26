@@ -31,6 +31,7 @@ APP_VERSION=$(grep '^app.version=' version.properties | cut -d'=' -f2)
 APP_VERSION_NUMERIC=$(grep '^app.version.numeric=' version.properties | cut -d'=' -f2)
 APP_NAME=$(grep '^app.name=' version.properties | cut -d'=' -f2)
 VENDOR=$(grep '^app.vendor=' version.properties | cut -d'=' -f2)
+WIN_UPGRADE_UUID=$(grep '^app.win.upgrade.uuid=' version.properties | cut -d'=' -f2)
 
 # Validate that version was loaded
 if [ -z "$APP_VERSION" ]; then
@@ -203,6 +204,14 @@ case "$(uname -s)" in
             --win-dir-chooser \
             --win-menu \
             --win-shortcut"
+
+        # Add Windows upgrade UUID if available (required for seamless updates)
+        if [ -n "$WIN_UPGRADE_UUID" ]; then
+            JPACKAGE_CMD="$JPACKAGE_CMD --win-upgrade-uuid $WIN_UPGRADE_UUID"
+            echo -e "${GREEN}[OK]${RESET} Using Windows upgrade UUID: ${CYAN}$WIN_UPGRADE_UUID${RESET}"
+        else
+            echo -e "${YELLOW}[WARN]${RESET} win-upgrade-uuid not set, users will need to manually uninstall old versions"
+        fi
 
         # Add icon if it exists
         if [ -f "assets/icon.ico" ]; then

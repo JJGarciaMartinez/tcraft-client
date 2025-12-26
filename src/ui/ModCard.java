@@ -26,7 +26,7 @@ public class ModCard extends JPanel {
      * @param modName The name of the mod to be displayed on the ModCard.
      */
     public ModCard(String modName) {
-        this(new ModInfo(modName, "", "", "", ""));
+        this(new ModInfo(modName, "", "", "", "", null, null));
     }
 
     /**

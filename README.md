@@ -8,9 +8,11 @@ A desktop application for managing and updating Minecraft mods for the TCraft mo
 
 - **Automatic Mod Detection**: Detects your Minecraft installation and mods folder across Windows, macOS, and Linux
 - **Mod Synchronization**: Downloads and updates mods from a remote manifest
+- **Config File Management**: Automatically downloads and manages mod configuration files ✨ **NEW**
 - **Visual Interface**: Clean, Minecraft-themed UI with real-time status updates
 - **Progress Tracking**: Visual feedback for download and update operations
 - **System Information**: Displays OS, Java version, and mod installation details
+- **Non-destructive Updates**: Preserves existing configuration files while adding new ones
 
 ## Project Structure
 
@@ -200,7 +202,9 @@ tcraft-mods-list/
       "version": "0.128.2+1.21.6",
       "description": "Fabric API is a core library for Minecraft Fabric mods.",
       "author": "Fabric Team",
-      "url": "https://raw.github.com/.../fabric-api-0.128.2+1.21.6.jar"
+      "url": "https://raw.github.com/.../fabric-api-0.128.2+1.21.6.jar",
+      "configUrl": "https://example.com/configs/fabric-api.toml",
+      "configName": "fabric-api.toml"
     }
   ]
 }
@@ -212,6 +216,10 @@ Each mod entry in the manifest contains:
 - **description**: Brief description of the mod's functionality
 - **author**: Mod creator or team
 - **url**: Direct download link to the mod .jar file
+- **configUrl** (optional): URL to the mod's configuration file ✨ **NEW**
+- **configName** (optional): Name of the configuration file ✨ **NEW**
+
+> **Note**: The `configUrl` and `configName` fields are optional. If present, the config file will be downloaded to the `.minecraft/config` folder without removing existing files.
 
 ## Future Plans
 
