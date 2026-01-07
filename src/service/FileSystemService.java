@@ -30,6 +30,16 @@ public class FileSystemService {
     }
 
     /**
+     * Retrieves the directory where Minecraft configuration files are stored.
+     * This method returns the "config" folder located inside the Minecraft directory.
+     *
+     * @return A {@code File} object representing the path to the config folder.
+     */
+    public File getConfigFolder() {
+        return new File(getMinecraftDirectory(), "config");
+    }
+
+    /**
      * Retrieves the directory where Minecraft is installed based on the user's operating system.
      * This method determines the folder path by checking the OS type and constructing the appropriate
      * directory path for Windows, macOS, or Linux.
@@ -69,7 +79,7 @@ public class FileSystemService {
             return mods;
         }
 
-        File[] jarFiles = modsFolder.listFiles((_, name) -> name.endsWith(".jar"));
+        File[] jarFiles = modsFolder.listFiles((dir, name) -> name.endsWith(".jar"));
         if (jarFiles != null) {
             for (File jarFile : jarFiles) {
                 mods.add(jarFile.getName());

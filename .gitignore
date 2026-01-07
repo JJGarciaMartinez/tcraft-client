@@ -32,3 +32,11 @@ bin/
 ### IntelliJ IDEA ###
 .idea/
 /.idea
+
+### Installers ###
+/installer
+installer/
+
+### Distribution Files ###
+*.zip
+

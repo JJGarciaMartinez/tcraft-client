@@ -2,6 +2,7 @@ package ui;
 
 import model.ModInfo;
 import util.FontLoader;
+import util.ImageLoader;
 
 import javax.swing.*;
 import java.awt.*;
@@ -25,7 +26,7 @@ public class ModCard extends JPanel {
      * @param modName The name of the mod to be displayed on the ModCard.
      */
     public ModCard(String modName) {
-        this(new ModInfo(modName, "", "", "", ""));
+        this(new ModInfo(modName, "", "", "", "", null, null));
     }
 
     /**
@@ -155,10 +156,10 @@ public class ModCard extends JPanel {
      * @param color  The color in which the status text should be displayed.
      */
     private void setStatusInternal(StatusType type, String status, Color color) {
-        ImageIcon originalIcon = new ImageIcon(type.getIconPath());
-        Image scaledImage = originalIcon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
-        ImageIcon icon = new ImageIcon(scaledImage);
-        iconLabel.setIcon(icon);
+        ImageIcon icon = ImageLoader.loadScaledImageIcon(type.getIconPath(), 32, 32);
+        if (icon != null) {
+            iconLabel.setIcon(icon);
+        }
         statusLabel.setText(status);
         statusLabel.setForeground(color);
         statusLabel.setFont(FontLoader.getMinecraftFont(14f));

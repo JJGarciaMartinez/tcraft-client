@@ -51,9 +51,9 @@ public class UIController {
      * control panel, facilitating update management and mod list refresh functionality.
      */
     private void setupListeners() {
-        ui.getControlPanel().setUpdateButtonListener(_ -> startUpdate());
-        ui.getControlPanel().setCancelButtonListener(_ -> cancelUpdate());
-        ui.getControlPanel().setRefreshButtonListener(_ -> refreshModList());
+        ui.getControlPanel().setUpdateButtonListener(e -> startUpdate());
+        ui.getControlPanel().setCancelButtonListener(e -> cancelUpdate());
+        ui.getControlPanel().setRefreshButtonListener(e -> refreshModList());
     }
 
     /**

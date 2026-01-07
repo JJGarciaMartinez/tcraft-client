@@ -83,6 +83,8 @@ public class JsonParser {
             String description = extractValue(modEntry, "\"description\":");
             String author = extractValue(modEntry, "\"author\":");
             String url = extractValue(modEntry, "\"url\":");
+            String configUrl = extractValue(modEntry, "\"configUrl\":");
+            String configName = extractValue(modEntry, "\"configName\":");
 
             // Validate required fields
             if (name != null && url != null) {
@@ -91,8 +93,9 @@ public class JsonParser {
                 if (description == null) description = "Sin descripción";
                 if (author == null) author = "Desconocido";
 
-                modsList.add(new ModInfo(name, version, description, author, url));
-                System.out.println("✓ Mod añadido: " + name + " v" + version + " por " + author);
+                modsList.add(new ModInfo(name, version, description, author, url, configUrl, configName));
+                System.out.println("✓ Mod añadido: " + name + " v" + version + " por " + author +
+                                   (configUrl != null ? " [con config]" : ""));
             } else {
                 modsIgnorados++;
                 System.err.println("Advertencia: Mod mal formado ignorado (name o url faltante): " + modEntry.substring(0, Math.min(50, modEntry.length())));

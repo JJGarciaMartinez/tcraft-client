@@ -2,6 +2,7 @@ package ui;
 
 import config.AssetPaths;
 import util.FontLoader;
+import util.ImageLoader;
 
 import javax.swing.*;
 import java.awt.*;
@@ -72,12 +73,18 @@ public class ControlPanel extends JPanel {
         buttonPanel.setOpaque(false);
 
         // Update and cancel buttons style
-        updateIcon = new ImageIcon(AssetPaths.UPDATE_BUTTON);
-        updateIcon.setImage(updateIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
-        cancelIcon = new ImageIcon(AssetPaths.CANCEL_BUTTON);
-        cancelIcon.setImage(cancelIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
+        updateIcon = ImageLoader.loadImageIcon(AssetPaths.UPDATE_BUTTON);
+        if (updateIcon != null) {
+            updateIcon.setImage(updateIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
+        }
+        cancelIcon = ImageLoader.loadImageIcon(AssetPaths.CANCEL_BUTTON);
+        if (cancelIcon != null) {
+            cancelIcon.setImage(cancelIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
+        }
         updateButton = new JButton(updateIcon);
-        updateButton.setPreferredSize(new Dimension(updateIcon.getIconWidth(), updateIcon.getIconHeight()));
+        if (updateIcon != null) {
+            updateButton.setPreferredSize(new Dimension(updateIcon.getIconWidth(), updateIcon.getIconHeight()));
+        }
         updateButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         updateButton.setFocusPainted(false);
         updateButton.setBorderPainted(false);
@@ -94,10 +101,14 @@ public class ControlPanel extends JPanel {
         });
 
         // Refresh button style
-        ImageIcon refreshIcon = new ImageIcon(AssetPaths.REFRESH_BUTTON);
-        refreshIcon.setImage(refreshIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
+        ImageIcon refreshIcon = ImageLoader.loadImageIcon(AssetPaths.REFRESH_BUTTON);
+        if (refreshIcon != null) {
+            refreshIcon.setImage(refreshIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
+        }
         refreshButton = new JButton(refreshIcon);
-        refreshButton.setPreferredSize(new Dimension(refreshIcon.getIconWidth(), refreshIcon.getIconHeight()));
+        if (refreshIcon != null) {
+            refreshButton.setPreferredSize(new Dimension(refreshIcon.getIconWidth(), refreshIcon.getIconHeight()));
+        }
         refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         refreshButton.setFocusPainted(false);
         refreshButton.setBorderPainted(false);

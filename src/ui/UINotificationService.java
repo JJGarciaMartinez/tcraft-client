@@ -121,16 +121,11 @@ public class UINotificationService {
         ui.getHeaderPanel().updateModsStatus("Mods actualizados correctamente");
         ui.getHeaderPanel().setStatusSuccess();
 
-        JOptionPane.showMessageDialog(ui,
-                String.format(
-                        """
-                                Todos los mods han sido actualizados correctamente.
-
-                                Total de mods: %d""",
-                        completed
-                ),
-                "Actualización Completa",
-                JOptionPane.INFORMATION_MESSAGE);
+        JOptionPane.showMessageDialog(ui, String.format("""
+            Todos los mods han sido actualizados correctamente.
+            Total de mods: %d""",
+            completed
+            ), "Actualización Completa", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
@@ -141,12 +136,12 @@ public class UINotificationService {
     public void notifyCriticalError(String errorMessage) {
         ui.getControlPanel().updateStatus("Error crítico en la actualización");
         ui.getControlPanel().hideProgress();
-        ui.getHeaderPanel().updateModsStatus("Error");
+        ui.getHeaderPanel().updateModsStatus("Ha ocurrido un error durante la actualización: " + errorMessage);
         ui.getHeaderPanel().setStatusError();
         ui.getControlPanel().setUpdateInProgress(false);
 
         JOptionPane.showMessageDialog(ui,
-                "Error crítico durante la actualización:\n\n" + errorMessage,
+                "Error crítico durante la actualización:\n" + errorMessage,
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
     }
