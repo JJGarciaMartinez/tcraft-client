@@ -1,7 +1,6 @@
 package service;
+
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A service for accessing and managing the file system related to a Minecraft installation,
@@ -60,32 +59,5 @@ public class FileSystemService {
         } else {
             return new File(userHome, ".minecraft");
         }
-    }
-
-
-    /**
-     * Retrieves a list of currently installed Minecraft mods by identifying all files
-     * with a ".jar" extension in the mods' folder.
-     *
-     * @return A list of strings representing the names of the ".jar" files found
-     *         in the mods folder. If the folder does not exist or no mods are found,
-     *         an empty list is returned.
-     */
-    public List<String> getCurrentMods() {
-        List<String> mods = new ArrayList<>();
-        File modsFolder = getModsFolder();
-
-        if (!modsFolder.exists() || !modsFolder.isDirectory()) {
-            return mods;
-        }
-
-        File[] jarFiles = modsFolder.listFiles((dir, name) -> name.endsWith(".jar"));
-        if (jarFiles != null) {
-            for (File jarFile : jarFiles) {
-                mods.add(jarFile.getName());
-            }
-        }
-
-        return mods;
     }
 }

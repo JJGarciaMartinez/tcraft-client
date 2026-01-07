@@ -1,5 +1,6 @@
 package ui;
 
+import config.AppProperties;
 import config.AssetPaths;
 import util.FontLoader;
 import util.ImageLoader;
@@ -7,6 +8,8 @@ import util.ImageLoader;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 /**
  * The ControlPanel class extends JPanel and serves as a custom control panel
@@ -49,9 +52,9 @@ public class ControlPanel extends JPanel {
      */
     public ControlPanel() {
         setLayout(new BorderLayout(10, 10));
-        setBackground(new Color(30, 30, 30));
+        setBackground(AppProperties.getBackgroundDark());
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(80, 80, 80)),
+                BorderFactory.createMatteBorder(1, 0, 0, 0, AppProperties.getBorderColor()),
                 BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
 
@@ -60,9 +63,9 @@ public class ControlPanel extends JPanel {
         progressBar.setValue(0);
         progressBar.setStringPainted(true);
         progressBar.setFont(FontLoader.getMinecraftFont(11f));
-        progressBar.setForeground(new Color(100, 200, 100));
-        progressBar.setBackground(new Color(50, 50, 50));
-        progressBar.setBorder(BorderFactory.createLineBorder(new Color(80, 80, 80), 1));
+        progressBar.setForeground(AppProperties.getAccentSuccess());
+        progressBar.setBackground(AppProperties.getBackgroundMedium());
+        progressBar.setBorder(BorderFactory.createLineBorder(AppProperties.getBorderColor(), 1));
         progressBar.setBorderPainted(true);
         progressBar.setUI(new javax.swing.plaf.basic.BasicProgressBarUI());
         progressBar.setPreferredSize(new Dimension(0, 20));
@@ -89,16 +92,7 @@ public class ControlPanel extends JPanel {
         updateButton.setFocusPainted(false);
         updateButton.setBorderPainted(false);
         updateButton.setContentAreaFilled(false);
-
-        // Press effect
-        updateButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                updateButton.setLocation(updateButton.getX() + 1, updateButton.getY() + 1);
-            }
-            public void mouseReleased(java.awt.event.MouseEvent evt) {
-                updateButton.setLocation(updateButton.getX() - 1, updateButton.getY() - 1);
-            }
-        });
+        addPressEffect(updateButton);
 
         // Refresh button style
         ImageIcon refreshIcon = ImageLoader.loadImageIcon(AssetPaths.REFRESH_BUTTON);
@@ -112,16 +106,7 @@ public class ControlPanel extends JPanel {
         refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         refreshButton.setFocusPainted(false);
         refreshButton.setBorderPainted(false);
-
-        // Press effect
-        refreshButton.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mousePressed(java.awt.event.MouseEvent evt) {
-                refreshButton.setLocation(refreshButton.getX() + 1, refreshButton.getY() + 1);
-            }
-            public void mouseReleased(java.awt.event.MouseEvent evt) {
-                refreshButton.setLocation(refreshButton.getX() - 1, refreshButton.getY() - 1);
-            }
-        });
+        addPressEffect(refreshButton);
 
         // Add buttons to the panel
         buttonPanel.add(updateButton);
@@ -130,7 +115,7 @@ public class ControlPanel extends JPanel {
         // Status label in the right position
         statusLabel = new JLabel("Listo para actualizar");
         statusLabel.setFont(FontLoader.getMinecraftFont(12f));
-        statusLabel.setForeground(new Color(180, 180, 180));
+        statusLabel.setForeground(AppProperties.getTextSecondary());
 
         // Central panel that includes the progress bar.
         JPanel centerPanel = new JPanel(new BorderLayout(0, 10));
@@ -275,6 +260,25 @@ public class ControlPanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
             progressBar.setVisible(true);
             progressBar.setValue(0);
+        });
+    }
+
+    /**
+     * Adds a press effect to the given button, creating a visual feedback
+     * when the button is pressed by shifting its position slightly.
+     *
+     * @param button the JButton to apply the press effect to
+     */
+    private void addPressEffect(JButton button) {
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent evt) {
+                button.setLocation(button.getX() + 1, button.getY() + 1);
+            }
+            @Override
+            public void mouseReleased(MouseEvent evt) {
+                button.setLocation(button.getX() - 1, button.getY() - 1);
+            }
         });
     }
 }

@@ -1,6 +1,7 @@
 package ui;
 
 import config.AppConfig;
+import config.AppProperties;
 import config.AssetPaths;
 import service.FileSystemService;
 import service.SystemInfoService;
@@ -35,7 +36,7 @@ public class HeaderPanel extends JPanel {
         Font bigMinecraftFont = FontLoader.getMinecraftFont(20f);
 
         setLayout(new BorderLayout());
-        setBackground(new Color(25, 25, 25));
+        setBackground(AppProperties.getBackgroundDarker());
         setBorder(BorderFactory.createEmptyBorder(35, 35, 35, 35));
 
         // Set up the top panel
@@ -55,7 +56,7 @@ public class HeaderPanel extends JPanel {
         // Set up the subtitle label
         JLabel subtitleLabel = new JLabel("Mod & Config Manager - " + AppConfig.VERSION_APP);
         subtitleLabel.setFont(smallMinecraftFont);
-        subtitleLabel.setForeground(new Color(180, 180, 180));
+        subtitleLabel.setForeground(AppProperties.getTextSecondary());
         subtitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add components to the banner panel
@@ -72,7 +73,7 @@ public class HeaderPanel extends JPanel {
         // Add system info components
         JLabel systemInfoTitle = new JLabel("Información del Sistema");
         systemInfoTitle.setFont(bigMinecraftFont);
-        systemInfoTitle.setForeground(new Color(255, 170, 0));
+        systemInfoTitle.setForeground(AppProperties.getAccentWarning());
         systemInfoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add system info labels
@@ -81,21 +82,21 @@ public class HeaderPanel extends JPanel {
         JLabel osLabel = new JLabel(" Sistema: " + osName);
         osLabel.setIcon(systemIcon);
         osLabel.setFont(normalMinecraftFont);
-        osLabel.setForeground(new Color(180, 180, 180));
+        osLabel.setForeground(AppProperties.getTextSecondary());
         osLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add Java version label
         String javaVersion = System.getProperty("java.version");
         JLabel javaVersionLabel = new JLabel("☕ Java: " + javaVersion);
         javaVersionLabel.setFont(normalMinecraftFont);
-        javaVersionLabel.setForeground(new Color(180, 180, 180));
+        javaVersionLabel.setForeground(AppProperties.getTextSecondary());
         javaVersionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add mods' path label
         String modsPath = fileSystemService.getModsFolder().getAbsolutePath();
         JLabel modPathLabel = new JLabel("📁 Ruta: " + modsPath);
         modPathLabel.setFont(normalMinecraftFont);
-        modPathLabel.setForeground(new Color(150, 150, 150));
+        modPathLabel.setForeground(AppProperties.getTextTertiary());
         modPathLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add components to the system info panel
@@ -123,7 +124,7 @@ public class HeaderPanel extends JPanel {
         // Mods status label
         modStatusLabel = new JLabel("0 mods instalados");
         modStatusLabel.setFont(normalMinecraftFont);
-        modStatusLabel.setForeground(new Color(255, 170, 0));
+        modStatusLabel.setForeground(AppProperties.getAccentWarning());
 
         // Add components to the stats panel
         statsPanel.add(statusIconLabel);

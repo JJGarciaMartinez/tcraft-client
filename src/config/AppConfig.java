@@ -12,11 +12,9 @@ import java.util.Properties;
  * across the application and build scripts.
  * <p>
  * Constants included in this class:
- * - URL_MANIFEST: The URL to the external manifest file containing a list of mods.
  * - VERSION_APP: The current version of the application (loaded from version.properties).
  */
 public class AppConfig {
-    public static final String URL_MANIFEST = "https://raw.githubusercontent.com/JJGarciaMartinez/tcraft-mods-list/main/modList/mod-list.json";
     public static final String VERSION_APP = loadVersion();
 
     /**

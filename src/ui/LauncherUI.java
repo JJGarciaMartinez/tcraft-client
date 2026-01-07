@@ -1,6 +1,7 @@
 package ui;
 
-import service.FileSystemService;
+import config.AppProperties;
+import service.ServiceFactory;
 
 import javax.swing.*;
 import java.awt.*;
@@ -19,7 +20,6 @@ public class LauncherUI extends JFrame {
     private final HeaderPanel headerPanel;
     private final ModListPanel modListPanel;
     private final ControlPanel controlPanel;
-    public final FileSystemService fileSystemService = new FileSystemService();
 
     /**
      * Constructs a new instance of the LauncherUI class, which serves as the main graphical interface
@@ -45,10 +45,10 @@ public class LauncherUI extends JFrame {
         setLocationRelativeTo(null);
 
         // Configurar tema oscuro
-        setBackground(new Color(30, 30, 30));
+        setBackground(AppProperties.getBackgroundDark());
 
         // Crear paneles
-        headerPanel = new HeaderPanel(fileSystemService);
+        headerPanel = new HeaderPanel(ServiceFactory.getFileSystemService());
         modListPanel = new ModListPanel();
         controlPanel = new ControlPanel();
 

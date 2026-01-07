@@ -40,3 +40,5 @@ installer/
 ### Distribution Files ###
 *.zip
 
+### Claude AI ###
+CLAUDE.md

@@ -1,5 +1,6 @@
 package ui;
 
+import config.AppProperties;
 import model.ModInfo;
 import util.FontLoader;
 import util.ImageLoader;
@@ -45,10 +46,10 @@ public class ModCard extends JPanel {
         // Set up panel layout and styles
         setLayout(new BorderLayout(10, 5));
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(80, 80, 80), 1),
+                BorderFactory.createLineBorder(AppProperties.getBorderColor(), 1),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
-        setBackground(new Color(40, 40, 40));
+        setBackground(AppProperties.getBackgroundMedium());
         setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
 
         // Left panel with icon setup
@@ -65,7 +66,7 @@ public class ModCard extends JPanel {
         // Name mod panel setup
         JLabel nameLabel = new JLabel(modInfo.name());
         nameLabel.setFont(normalMinecraftFont);
-        nameLabel.setForeground(Color.WHITE);
+        nameLabel.setForeground(AppProperties.getTextPrimary());
         nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Version and Author panel setup
@@ -81,7 +82,7 @@ public class ModCard extends JPanel {
         if (modVersionExist) {
             JLabel versionLabel = new JLabel("v" + modInfo.version());
             versionLabel.setFont(smallMinecraftFont);
-            versionLabel.setForeground(new Color(150, 150, 250));
+            versionLabel.setForeground(AppProperties.getAccentVersion());
             metadataPanel.add(versionLabel);
         }
 
@@ -90,12 +91,12 @@ public class ModCard extends JPanel {
             if (modVersionExist) {
                 JLabel separator = new JLabel(" • ");
                 separator.setFont(smallMinecraftFont);
-                separator.setForeground(new Color(120, 120, 120));
+                separator.setForeground(AppProperties.getTextTertiary());
                 metadataPanel.add(separator);
             }
             JLabel authorLabel = new JLabel("por " + modInfo.author());
             authorLabel.setFont(smallMinecraftFont);
-            authorLabel.setForeground(new Color(180, 180, 180));
+            authorLabel.setForeground(AppProperties.getTextSecondary());
             metadataPanel.add(authorLabel);
         }
 
@@ -107,14 +108,14 @@ public class ModCard extends JPanel {
         if (modInfo.description() != null && !modInfo.description().isEmpty()) {
             descriptionLabel = new JLabel(modInfo.description());
             descriptionLabel.setFont(smallMinecraftFont);
-            descriptionLabel.setForeground(new Color(160, 160, 160));
+            descriptionLabel.setForeground(AppProperties.getTextTertiary());
             descriptionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         }
 
         // State label setup
         statusLabel = new JLabel("");
         statusLabel.setFont(normalMinecraftFont);
-        statusLabel.setForeground(new Color(180, 180, 180));
+        statusLabel.setForeground(AppProperties.getTextSecondary());
         statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add components to the center panel
@@ -176,9 +177,9 @@ public class ModCard extends JPanel {
     public void setCompleted(boolean success) {
         SwingUtilities.invokeLater(() -> {
             if (success) {
-                setStatus(SUCCESS,"Completado", new Color(100, 200, 100));
+                setStatus(SUCCESS,"Completado", AppProperties.getAccentSuccess());
             } else {
-                setStatus(StatusType.ERROR,"Error", new Color(200, 100, 100));
+                setStatus(StatusType.ERROR,"Error", AppProperties.getAccentError());
             }
         });
     }
@@ -197,7 +198,7 @@ public class ModCard extends JPanel {
      * manner, as required for Swing components.
      */
     public void setDownloading() {
-        SwingUtilities.invokeLater(() -> setStatus(PROCESSING,"Descargando...", new Color(100, 150, 255)));
+        SwingUtilities.invokeLater(() -> setStatus(PROCESSING,"Descargando...", AppProperties.getAccentInfo()));
     }
 
     /**
@@ -212,7 +213,7 @@ public class ModCard extends JPanel {
      * as required for Swing components.
      */
     public void setChecking() {
-        SwingUtilities.invokeLater(() -> setStatus(PROCESSING,"Verificando...", new Color(255, 200, 100)));
+        SwingUtilities.invokeLater(() -> setStatus(PROCESSING,"Verificando...", AppProperties.getAccentWarningLight()));
     }
 
     /**
@@ -226,6 +227,6 @@ public class ModCard extends JPanel {
      * This method ensures thread safety when updating Swing components.
      */
     public void setAlreadyInstalled() {
-        SwingUtilities.invokeLater(() -> setStatus(SUCCESS,"Ya instalado", new Color(150, 200, 150)));
+        SwingUtilities.invokeLater(() -> setStatus(SUCCESS,"Ya instalado", AppProperties.getAccentSuccessLight()));
     }
 }

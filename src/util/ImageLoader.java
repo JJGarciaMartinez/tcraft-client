@@ -2,16 +2,11 @@ package util;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 
 /**
  * Utility class for loading image resources from the classpath.
  * This allows images to be loaded both when running from the IDE and when packaged in a JAR file.
- * <p>
- * All methods in this class load resources from the classpath, ensuring compatibility
- * with packaged applications.
  */
 public class ImageLoader {
 
@@ -35,17 +30,6 @@ public class ImageLoader {
             System.err.println("Error al cargar la imagen " + path + ": " + e.getMessage());
             return null;
         }
-    }
-
-    /**
-     * Loads an Image from the classpath.
-     *
-     * @param path The path to the image resource (e.g., "assets/image.png")
-     * @return An Image object, or null if the image cannot be loaded
-     */
-    public static Image loadImage(String path) {
-        ImageIcon icon = loadImageIcon(path);
-        return icon != null ? icon.getImage() : null;
     }
 
     /**
@@ -84,15 +68,4 @@ public class ImageLoader {
         Image scaledImage = originalIcon.getImage().getScaledInstance(targetWidth, targetHeight, Image.SCALE_SMOOTH);
         return new ImageIcon(scaledImage);
     }
-
-    /**
-     * Checks if a resource exists in the classpath.
-     *
-     * @param path The path to check
-     * @return true if the resource exists, false otherwise
-     */
-    public static boolean resourceExists(String path) {
-        return ImageLoader.class.getClassLoader().getResource(path) != null;
-    }
 }
-

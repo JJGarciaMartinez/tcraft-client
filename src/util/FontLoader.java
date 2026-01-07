@@ -1,5 +1,6 @@
 package util;
 
+import config.AppProperties;
 import config.AssetPaths;
 
 import java.awt.*;
@@ -46,7 +47,7 @@ public class FontLoader {
             } catch (FontFormatException | IOException e) {
                 System.err.println("Error al cargar la fuente Minecraft: " + e.getMessage());
                 System.err.println("  Usando fuente Arial como alternativa");
-                minecraftFont = new Font("Arial", Font.PLAIN, 12);
+                minecraftFont = new Font(AppProperties.getFallbackFont(), Font.PLAIN, 12);
             }
         }
         return minecraftFont;

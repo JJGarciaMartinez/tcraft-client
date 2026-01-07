@@ -1,4 +1,7 @@
 package service;
+
+import config.AppProperties;
+
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -31,9 +34,9 @@ public class DownloadService {
         }
 
         HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
-        connection.setConnectTimeout(10000);// 10 seconds
-        connection.setReadTimeout(30000);// 30 seconds
+        connection.setRequestProperty("User-Agent", AppProperties.getUserAgent());
+        connection.setConnectTimeout(AppProperties.getConnectTimeout());
+        connection.setReadTimeout(AppProperties.getReadTimeout());
 
         // Check HTTP response code
         int responseCode = connection.getResponseCode();

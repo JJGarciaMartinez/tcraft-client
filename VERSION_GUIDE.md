@@ -31,6 +31,30 @@ Pre-release versions use a single-letter prefix:
 | `rc` | Release Candidate | `rc26.1.0` | Pre-release, final testing |
 | *(none)* | Stable | `26.1.0` | Production-ready release |
 
+### Third Component: Iterations vs Fixes
+
+The third component (`FIXES`) has different meanings depending on the phase:
+
+| Phase | Third Component Meaning | Example |
+|-------|------------------------|---------|
+| Alpha/Beta/RC | **Iteration number** | `b26.1.4` = 4th beta iteration |
+| Stable | **Fix/patch number** | `26.1.4` = 4th fix of stable release |
+
+**Key distinction:**
+- `b26.1.4` = Fourth **beta iteration** of version 26.1
+- `26.1.4` = Fourth **bug fix** of stable release 26.1
+
+**Development progression:**
+```
+b26.1.1 → b26.1.2 → b26.1.3 → b26.1.4  (beta iterations)
+                                   ↓
+                                26.1.0  (stable release, resets to 0)
+                                   ↓
+                       26.1.1 → 26.1.2  (bug fixes)
+```
+
+The phase prefix (`b`, `a`, `rc`, or none) distinguishes iterations from fixes.
+
 ### Important: Year vs Development Timeline
 
 The year component (**YY**) represents the **planned release year**, not the current development year.
@@ -46,14 +70,16 @@ This allows development in late 2025 for a 2026 release while maintaining clear 
 
 | Version | Meaning |
 |---------|---------|
-| `a26.1.0` | Alpha - first release of 2026 |
-| `b26.1.0` | Beta - first release of 2026 |
-| `b26.1.1` | Beta - first release of 2026, patch 1 |
-| `rc26.1.0` | Release Candidate - first release of 2026 |
-| `26.1.0` | Stable - first release of 2026 |
-| `26.1.1` | Stable - first release of 2026, patch 1 |
-| `26.2.0` | Stable - second release of 2026 |
-| `b27.1.0` | Beta - first release of 2027 |
+| `a26.1.0` | Alpha - 1st iteration for version 26.1 |
+| `a26.1.1` | Alpha - 2nd iteration for version 26.1 |
+| `b26.1.0` | Beta - 1st iteration for version 26.1 |
+| `b26.1.4` | Beta - 5th iteration for version 26.1 |
+| `rc26.1.0` | Release Candidate - 1st RC for version 26.1 |
+| `26.1.0` | **Stable release** of version 26.1 |
+| `26.1.1` | Stable - 1st bug fix for version 26.1 |
+| `26.1.2` | Stable - 2nd bug fix for version 26.1 |
+| `26.2.0` | **Stable release** of version 26.2 |
+| `b27.1.0` | Beta - 1st iteration for version 27.1 |
 
 **Progression example:**
 ```
@@ -303,21 +329,31 @@ jpackage --app-version $APP_VERSION_NUMERIC ...
 Typical development cycle for 2026 first release:
 
 ```
-a26.1.0  → Alpha (early development)
+a26.1.0  → Alpha - 1st iteration (early development)
   ↓
-b26.1.0  → Beta (testing phase)
+a26.1.1  → Alpha - 2nd iteration
   ↓
-b26.1.1  → Beta fix 1
+b26.1.0  → Beta - 1st iteration (testing phase)
   ↓
-rc26.1.0 → Release Candidate
+b26.1.1  → Beta - 2nd iteration
   ↓
-26.1.0   → Stable Release
+b26.1.2  → Beta - 3rd iteration
   ↓
-26.1.1   → Patch fix 1
+b26.1.3  → Beta - 4th iteration
   ↓
-26.1.2   → Patch fix 2
+b26.1.4  → Beta - 5th iteration (current: b26.1.4)
   ↓
-26.2.0   → Second major release of 2026
+rc26.1.0 → Release Candidate - 1st RC
+  ↓
+rc26.1.1 → Release Candidate - 2nd RC (if needed)
+  ↓
+26.1.0   → STABLE RELEASE (third component resets to 0)
+  ↓
+26.1.1   → Stable - 1st bug fix
+  ↓
+26.1.2   → Stable - 2nd bug fix
+  ↓
+26.2.0   → Next major release cycle begins
 ```
 
 ## Validation

@@ -1,5 +1,6 @@
 package ui;
 
+import config.AppProperties;
 import model.ModInfo;
 import util.FontLoader;
 
@@ -39,7 +40,7 @@ public class ModListPanel extends JPanel {
     public ModListPanel() {
         // Set up panel layout and styles
         setLayout(new BorderLayout());
-        setBackground(new Color(35, 35, 35));
+        setBackground(AppProperties.getBackgroundDark());
 
         // Create a HashMap to store ModCards by name
         modCards = new HashMap<>();
@@ -47,13 +48,13 @@ public class ModListPanel extends JPanel {
         // Container for mod cards
         modsContainer = new JPanel();
         modsContainer.setLayout(new BoxLayout(modsContainer, BoxLayout.Y_AXIS));
-        modsContainer.setBackground(new Color(35, 35, 35));
+        modsContainer.setBackground(AppProperties.getBackgroundDark());
         modsContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // Label for when there are no mods installed
         emptyLabel = new JLabel("No hay mods instalados");
         emptyLabel.setFont(FontLoader.getMinecraftFont(20f));
-        emptyLabel.setForeground(new Color(150, 150, 150));
+        emptyLabel.setForeground(AppProperties.getTextTertiary());
         emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
@@ -61,7 +62,7 @@ public class ModListPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(modsContainer);
         scrollPane.setBorder(null);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
-        scrollPane.setBackground(new Color(35, 35, 35));
+        scrollPane.setBackground(AppProperties.getBackgroundDark());
 
         // Add a scroll pane to the main panel
         add(scrollPane, BorderLayout.CENTER);
@@ -136,7 +137,7 @@ public class ModListPanel extends JPanel {
                 // If there are mods, create ModCards for each
                 for (String modName : modNames) {
                     ModCard card = new ModCard(modName);
-                    card.setStatus(StatusType.IN_SYSTEM,"Instalado", new Color(100, 200, 100));
+                    card.setStatus(StatusType.IN_SYSTEM,"Instalado", AppProperties.getAccentSuccess());
                     modCards.put(modName, card);
                     modsContainer.add(card);
                     modsContainer.add(Box.createVerticalStrut(10));
