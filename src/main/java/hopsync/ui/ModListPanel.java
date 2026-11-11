@@ -225,6 +225,13 @@ public class ModListPanel extends JPanel {
     }
 
     /**
+     * Shows an arbitrary status on the card of the given mod file.
+     */
+    public void setModStatus(String file, StatusType type, String text, Color color) {
+        executeOnModCard(file, card -> card.setStatus(type, text, color));
+    }
+
+    /**
      * Clears all mod-related components displayed in the panel.
      * <p>
      * This method removes all components from the modsContainer, clears the list of mod cards,

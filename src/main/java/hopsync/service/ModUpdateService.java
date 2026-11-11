@@ -2,55 +2,90 @@ package hopsync.service;
 
 import hopsync.event.UpdateEvent;
 import hopsync.model.Manifest;
+import hopsync.sync.FileDownloader;
+import hopsync.sync.LocalState;
+import hopsync.sync.StateStore;
+import hopsync.sync.SyncExecutor;
+import hopsync.sync.SyncPlan;
+import hopsync.sync.SyncPlanner;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Orchestrates the mod update process using specialized services.
- * Replaces the God Object ModUpdater.
+ * Runs a sync in two steps: {@link #prepare} fetches the manifest and computes what would change
+ * without touching any file, and {@link #apply} performs that plan and records the result.
  */
 public class ModUpdateService {
+    private static final int PARALLEL_DOWNLOADS = 4;
+
     private final FileSystemService fileSystemService;
     private final ManifestService manifestService;
-    private final ModCleanupService cleanupService;
-    private final ModDownloadService downloadService;
+    private final FileDownloader downloader;
 
-    public ModUpdateService(
-            FileSystemService fileSystemService,
-            ManifestService manifestService,
-            ModCleanupService cleanupService,
-            ModDownloadService downloadService) {
+    public ModUpdateService(FileSystemService fileSystemService, ManifestService manifestService,
+                            FileDownloader downloader) {
         this.fileSystemService = fileSystemService;
         this.manifestService = manifestService;
-        this.cleanupService = cleanupService;
-        this.downloadService = downloadService;
+        this.downloader = downloader;
     }
 
-    public void performUpdate(Consumer<UpdateEvent> eventPublisher) throws IOException {
-        eventPublisher.accept(new UpdateEvent.LogMessage("Iniciando actualizador..."));
-
-        // 1. Ensure folders exist
+    public SyncPlan prepare(Consumer<UpdateEvent> eventPublisher) throws IOException {
         ensureFoldersExist(eventPublisher);
 
-        // 2. Fetch manifest
-        eventPublisher.accept(new UpdateEvent.LogMessage("Obteniendo lista de mods del servidor..."));
+        eventPublisher.accept(new UpdateEvent.LogMessage("Obteniendo el manifest del pack..."));
         Manifest manifest = manifestService.fetchManifest();
         eventPublisher.accept(new UpdateEvent.LogMessage("Pack: " + manifest.pack().name() + " " + manifest.pack().version()
             + " - " + manifest.mods().size() + " mods, " + manifest.configs().size() + " configs."));
 
-        // 3. Clean up outdated mods
-        eventPublisher.accept(new UpdateEvent.LogMessage("--- Verificando archivos antiguos ---"));
-        cleanupService.removeOutdatedMods(manifest.mods(), eventPublisher);
+        eventPublisher.accept(new UpdateEvent.LogMessage("Comparando con los archivos instalados..."));
+        SyncPlanner planner = new SyncPlanner(fileSystemService.getModsFolder().toPath(),
+            fileSystemService.getConfigFolder().toPath());
+        return planner.plan(manifest, stateStore().load());
+    }
 
-        // 4. Download new/updated mods and configs
-        eventPublisher.accept(new UpdateEvent.LogMessage("--- Verificando actualizaciones ---"));
-        downloadService.downloadMods(manifest.mods(), eventPublisher);
-        downloadService.downloadConfigs(manifest.configs(), eventPublisher);
+    public SyncExecutor.Result apply(SyncPlan plan, Consumer<UpdateEvent> eventPublisher, BooleanSupplier cancelled)
+            throws IOException {
+        StateStore store = stateStore();
+        LocalState previous = store.load();
+        SyncExecutor executor = new SyncExecutor(downloader, fileSystemService.getModsFolder().toPath(),
+            fileSystemService.getConfigFolder().toPath(), PARALLEL_DOWNLOADS);
 
-        eventPublisher.accept(new UpdateEvent.LogMessage("\n--- ¡ACTUALIZACIÓN COMPLETADA! ---"));
-        eventPublisher.accept(new UpdateEvent.LogMessage("Puedes cerrar esta ventana y jugar."));
+        SyncExecutor.Result result = executor.execute(plan, previous, new SyncExecutor.Listener() {
+            @Override
+            public void modStarted(String file) {
+                eventPublisher.accept(new UpdateEvent.ModDownloading(file));
+            }
+
+            @Override
+            public void modFinished(String file, boolean success, String error) {
+                eventPublisher.accept(new UpdateEvent.ModCompleted(file, success));
+            }
+
+            @Override
+            public void modRemoved(String file) {
+                eventPublisher.accept(new UpdateEvent.ModRemoved(file));
+            }
+
+            @Override
+            public void progress(int percent) {
+                eventPublisher.accept(new UpdateEvent.ProgressChanged(percent));
+            }
+
+            @Override
+            public void log(String message) {
+                eventPublisher.accept(new UpdateEvent.LogMessage(message));
+            }
+        }, cancelled);
+
+        store.save(result.state());
+        return result;
+    }
+
+    private StateStore stateStore() {
+        return new StateStore(fileSystemService.getStateFile().toPath());
     }
 
     private void ensureFoldersExist(Consumer<UpdateEvent> eventPublisher) throws IOException {

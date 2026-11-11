@@ -10,8 +10,6 @@ public class ServiceFactory {
     private static FileSystemService fileSystemService;
     private static DownloadService downloadService;
     private static ManifestService manifestService;
-    private static ModCleanupService cleanupService;
-    private static ModDownloadService modDownloadService;
     private static ModUpdateService modUpdateService;
     private static EventBus eventBus;
 
@@ -35,25 +33,12 @@ public class ServiceFactory {
         return manifestService;
     }
 
-    public static ModCleanupService getCleanupService() {
-        if (cleanupService == null) cleanupService = new ModCleanupService(getFileSystemService());
-        return cleanupService;
-    }
-
-    public static ModDownloadService getModDownloadService() {
-        if (modDownloadService == null) {
-            modDownloadService = new ModDownloadService(getDownloadService(), getFileSystemService());
-        }
-        return modDownloadService;
-    }
-
     public static ModUpdateService getModUpdateService() {
         if (modUpdateService == null) {
             modUpdateService = new ModUpdateService(
                 getFileSystemService(),
                 getManifestService(),
-                getCleanupService(),
-                getModDownloadService()
+                getDownloadService()
             );
         }
         return modUpdateService;
@@ -63,8 +48,6 @@ public class ServiceFactory {
         fileSystemService = null;
         downloadService = null;
         manifestService = null;
-        cleanupService = null;
-        modDownloadService = null;
         modUpdateService = null;
         eventBus = null;
     }

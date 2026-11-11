@@ -1,51 +1,45 @@
 package hopsync.state;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Thread-safe state container for the update process.
- * Replaces the scattered state across multiple UI components.
+ * Thread-safe phase of the update process.
  */
 public class UpdateState {
-    public enum Phase { IDLE, STARTING, DOWNLOADING, COMPLETED, FAILED, CANCELLED }
+    public enum Phase {
+        IDLE, PLANNING, AWAITING_CONFIRMATION, APPLYING, COMPLETED, FAILED, CANCELLED;
+
+        public boolean isActive() {
+            return this == PLANNING || this == AWAITING_CONFIRMATION || this == APPLYING;
+        }
+    }
 
     private final AtomicReference<Phase> phase = new AtomicReference<>(Phase.IDLE);
-    private final AtomicInteger completedCount = new AtomicInteger(0);
-    private final AtomicInteger failedCount = new AtomicInteger(0);
-    private final AtomicInteger totalCount = new AtomicInteger(0);
-    private final AtomicReference<Thread> updateThread = new AtomicReference<>();
 
-    public Phase getPhase() { return phase.get(); }
-    public void setPhase(Phase p) { phase.set(p); }
-
-    public int getCompletedCount() { return completedCount.get(); }
-    public void incrementCompleted() { completedCount.incrementAndGet(); }
-
-    public int getFailedCount() { return failedCount.get(); }
-    public void incrementFailed() { failedCount.incrementAndGet(); }
-
-    public int getTotalCount() { return totalCount.get(); }
-    public void setTotalCount(int total) { totalCount.set(total); }
-
-    public void reset() {
-        phase.set(Phase.IDLE);
-        completedCount.set(0);
-        failedCount.set(0);
-        totalCount.set(0);
+    public Phase getPhase() {
+        return phase.get();
     }
 
-    public boolean isRunning() {
-        Thread t = updateThread.get();
-        return t != null && t.isAlive();
+    public void setPhase(Phase p) {
+        phase.set(p);
     }
 
-    public void setUpdateThread(Thread t) { updateThread.set(t); }
+    /**
+     * Atomically moves from {@code expected} to {@code next}; returns false if another thread got there first.
+     */
+    public boolean transition(Phase expected, Phase next) {
+        return phase.compareAndSet(expected, next);
+    }
 
-    public void cancel() {
-        Thread t = updateThread.get();
-        if (t != null && t.isAlive()) {
-            t.interrupt();
-        }
+    /**
+     * Starts a new update unless one is already active.
+     */
+    public boolean tryBegin() {
+        Phase current = phase.get();
+        return !current.isActive() && phase.compareAndSet(current, Phase.PLANNING);
+    }
+
+    public boolean isActive() {
+        return phase.get().isActive();
     }
 }

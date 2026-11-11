@@ -44,6 +44,73 @@ public final class Json {
         return value;
     }
 
+    /**
+     * Serializes maps, lists, strings, numbers, booleans and null to compact JSON.
+     *
+     * @throws IllegalArgumentException for any other type or a non-finite number
+     */
+    public static String write(Object value) {
+        StringBuilder sb = new StringBuilder();
+        writeValue(sb, value);
+        return sb.toString();
+    }
+
+    private static void writeValue(StringBuilder sb, Object value) {
+        switch (value) {
+            case null -> sb.append("null");
+            case String s -> writeString(sb, s);
+            case Boolean b -> sb.append(b);
+            case Double d when !Double.isFinite(d) -> throw new IllegalArgumentException("Non-finite number: " + d);
+            case Float f when !Float.isFinite(f) -> throw new IllegalArgumentException("Non-finite number: " + f);
+            case Number n -> sb.append(n);
+            case Map<?, ?> map -> {
+                sb.append('{');
+                boolean first = true;
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    if (!(entry.getKey() instanceof String key)) {
+                        throw new IllegalArgumentException("JSON object keys must be strings: " + entry.getKey());
+                    }
+                    if (!first) sb.append(',');
+                    first = false;
+                    writeString(sb, key);
+                    sb.append(':');
+                    writeValue(sb, entry.getValue());
+                }
+                sb.append('}');
+            }
+            case List<?> list -> {
+                sb.append('[');
+                for (int i = 0; i < list.size(); i++) {
+                    if (i > 0) sb.append(',');
+                    writeValue(sb, list.get(i));
+                }
+                sb.append(']');
+            }
+            default -> throw new IllegalArgumentException("Unsupported JSON type: " + value.getClass().getName());
+        }
+    }
+
+    private static void writeString(StringBuilder sb, String s) {
+        sb.append('"');
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '"' -> sb.append("\\\"");
+                case '\\' -> sb.append("\\\\");
+                case '\n' -> sb.append("\\n");
+                case '\r' -> sb.append("\\r");
+                case '\t' -> sb.append("\\t");
+                case '\b' -> sb.append("\\b");
+                case '\f' -> sb.append("\\f");
+                default -> {
+                    if (c < 0x20) sb.append(String.format("\\u%04x", (int) c));
+                    else sb.append(c);
+                }
+            }
+        }
+        sb.append('"');
+    }
+
     private Object readValue() throws JsonParseException {
         if (pos >= text.length()) {
             throw error("fin inesperado del JSON");

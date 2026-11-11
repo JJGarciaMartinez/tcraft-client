@@ -1,6 +1,11 @@
 package hopsync.ui;
 
+import hopsync.config.AppProperties;
 import hopsync.event.UpdateEvent;
+import hopsync.model.ModInfo;
+import hopsync.model.PackInfo;
+import hopsync.sync.SyncPlan;
+
 import javax.swing.SwingUtilities;
 
 /**
@@ -23,8 +28,24 @@ public class UpdateEventHandler {
             case UpdateEvent.UpdateStarted e -> {
                 ui.getModListPanel().clear();
                 ui.getControlPanel().setUpdateInProgress(true);
-                ui.getControlPanel().showProgress();
                 ui.getHeaderPanel().setStatusProcessing();
+                ui.getControlPanel().updateStatus("Comprobando el pack...");
+            }
+            case UpdateEvent.PlanReady e -> {
+                showPlan(e.plan());
+                ui.getControlPanel().updateStatus("Revisa los cambios antes de aplicarlos");
+            }
+            case UpdateEvent.UpToDate e -> {
+                showPlan(e.plan());
+                ui.getControlPanel().setUpdateInProgress(false);
+                ui.getHeaderPanel().setStatusSuccess();
+                PackInfo pack = e.plan().manifest().pack();
+                ui.getControlPanel().updateStatus("Todo al día: " + pack.name() + " " + pack.version());
+            }
+            case UpdateEvent.ApplyStarted e -> {
+                ui.getControlPanel().updateProgress(0);
+                ui.getControlPanel().showProgress();
+                ui.getControlPanel().updateStatus("Aplicando cambios...");
             }
             case UpdateEvent.UpdateCompleted e -> {
                 ui.getControlPanel().setUpdateInProgress(false);
@@ -49,17 +70,32 @@ public class UpdateEventHandler {
                 ui.getHeaderPanel().setStatusError();
                 ui.getControlPanel().updateStatus("Error: " + e.error());
             }
-            case UpdateEvent.ProgressChanged e -> {
-                int percentage = e.total() > 0 ? (e.current() * 100) / e.total() : 0;
-                ui.getControlPanel().updateProgress(percentage);
-            }
-            case UpdateEvent.ModProcessing e -> ui.getModListPanel().addModSync(e.mod());
-            case UpdateEvent.ModDownloading e -> ui.getModListPanel().setModDownloading(e.modName());
-            case UpdateEvent.ModCompleted e -> ui.getModListPanel().setModCompleted(e.modName(), e.success());
-            case UpdateEvent.ModAlreadyInstalled e -> ui.getModListPanel().setModAlreadyInstalled(e.modName());
-            case UpdateEvent.ModError e -> ui.getModListPanel().setModCompleted(e.modName(), false);
+            case UpdateEvent.ProgressChanged e -> ui.getControlPanel().updateProgress(e.percent());
+            case UpdateEvent.ModDownloading e -> ui.getModListPanel().setModDownloading(e.file());
+            case UpdateEvent.ModCompleted e -> ui.getModListPanel().setModCompleted(e.file(), e.success());
+            case UpdateEvent.ModRemoved e -> ui.getModListPanel().setModStatus(e.file(), StatusType.WARNING,
+                "Eliminado", AppProperties.getAccentWarning());
             // Can be shown in a log panel if needed
             case UpdateEvent.LogMessage e -> { }
+        }
+    }
+
+    private void showPlan(SyncPlan plan) {
+        ModListPanel list = ui.getModListPanel();
+        list.clear();
+        for (SyncPlan.ModAction action : plan.mods()) {
+            list.addModSync(ModInfo.of(action.mod()));
+            String file = action.mod().file();
+            switch (action.change()) {
+                case UP_TO_DATE -> list.setModAlreadyInstalled(file);
+                case NEW -> list.setModStatus(file, StatusType.PROCESSING, "Nuevo", AppProperties.getAccentInfo());
+                case UPDATE -> list.setModStatus(file, StatusType.PROCESSING, "Se actualizará",
+                    AppProperties.getAccentWarningLight());
+            }
+        }
+        for (String file : plan.removals()) {
+            list.addModSync(ModInfo.installed(file));
+            list.setModStatus(file, StatusType.WARNING, "Se eliminará", AppProperties.getAccentWarning());
         }
     }
 }

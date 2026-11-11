@@ -91,4 +91,28 @@ class JsonTest {
         JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse("{\"a\": tru}"));
         assertEquals(6, e.getPosition());
     }
+
+    @Test
+    void writesAndReadsBack() throws Exception {
+        Map<String, Object> value = new java.util.LinkedHashMap<>();
+        value.put("text", "q\" b\\ \n\t\u0001 é 😀");
+        value.put("int", 42L);
+        value.put("double", 1.5);
+        value.put("bool", true);
+        value.put("nothing", null);
+        value.put("list", Arrays.asList(1L, "two", null));
+        value.put("map", Map.of("k", "v"));
+
+        String json = Json.write(value);
+
+        assertEquals(value, Json.parse(json));
+        assertTrue(json.contains("\\u0001"));
+    }
+
+    @Test
+    void refusesUnsupportedValues() {
+        assertThrows(IllegalArgumentException.class, () -> Json.write(Double.NaN));
+        assertThrows(IllegalArgumentException.class, () -> Json.write(new Object()));
+        assertThrows(IllegalArgumentException.class, () -> Json.write(Map.of(1, "x")));
+    }
 }
