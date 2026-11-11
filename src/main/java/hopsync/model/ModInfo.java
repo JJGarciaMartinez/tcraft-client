@@ -16,6 +16,6 @@ public record ModInfo(String file, String name, String version, String descripti
     }
 
     public static ModInfo installed(String file) {
-        return new ModInfo(file, file, "Instalado", "", "");
+        return new ModInfo(file, file, "", "", "");
     }
 }
