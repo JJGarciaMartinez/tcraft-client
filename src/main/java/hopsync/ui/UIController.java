@@ -1,6 +1,7 @@
 package hopsync.ui;
 
 import hopsync.event.EventBus;
+import hopsync.event.UpdateEvent;
 import hopsync.service.*;
 
 import javax.swing.*;
@@ -31,6 +32,7 @@ public class UIController {
         this.modLoadService = new ModLoadService(ServiceFactory.getFileSystemService());
 
         eventBus.subscribe(eventHandler::handleEvent);
+        eventBus.subscribe(this::askForConfirmation);
         setupListeners();
         SwingUtilities.invokeLater(this::loadCurrentMods);
     }
@@ -42,6 +44,21 @@ public class UIController {
         ui.getControlPanel().setUpdateButtonListener(e -> coordinator.startUpdate());
         ui.getControlPanel().setCancelButtonListener(e -> cancelUpdate());
         ui.getControlPanel().setRefreshButtonListener(e -> loadCurrentMods());
+    }
+
+    /**
+     * Shows the plan to the player once it is ready; nothing is written until they accept it.
+     */
+    private void askForConfirmation(UpdateEvent event) {
+        if (event instanceof UpdateEvent.PlanReady ready) {
+            SwingUtilities.invokeLater(() -> {
+                if (SyncPlanDialog.confirm(ui, ready.plan())) {
+                    coordinator.confirmPlan();
+                } else {
+                    cancelUpdate();
+                }
+            });
+        }
     }
 
     /**

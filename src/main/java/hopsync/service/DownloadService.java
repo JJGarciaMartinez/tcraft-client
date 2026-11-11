@@ -1,19 +1,30 @@
 package hopsync.service;
 
 import hopsync.config.AppProperties;
+import hopsync.sync.FileDownloader;
 
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Scanner;
+import java.util.concurrent.CancellationException;
+import java.util.function.BooleanSupplier;
+import java.util.function.LongConsumer;
 
 /**
  * The DownloadService class provides utilities for downloading content from the internet.
- * It supports downloading content as a string or saving it directly to a file while
- * ensuring proper HTTP connection management and error handling.
+ * It supports downloading content as a string or saving it to a file after verifying
+ * its size and hash, ensuring proper HTTP connection management and error handling.
  */
-public class DownloadService {
+public class DownloadService implements FileDownloader {
 
     /**
      * Creates an {@link HttpURLConnection} instance for the specified URL string.
@@ -82,39 +93,58 @@ public class DownloadService {
     }
 
     /**
-     * Downloads a file from the specified URL and saves it to the provided destination file.
-     * The method ensures that a partially downloaded file is deleted if an IOException occurs
-     * during the download process.
+     * Downloads {@code urlString} to {@code destination} only if the content matches the expected
+     * size and SHA-512. Data is written to a temporary {@link FileDownloader#PART_SUFFIX} file next to the destination
+     * and moved into place at the end, so the destination is either the old file or the complete,
+     * verified new one; never a partial download.
      *
-     * @param urlString the URL of the file to download
-     * @param destination the file in which the downloaded content will be saved
-     * @throws IOException if an I/O error occurs during the download process or while accessing the file system
+     * @param onBytes   receives the number of bytes read after each chunk
+     * @param cancelled polled between chunks; when it returns true the download stops
+     * @throws java.util.concurrent.CancellationException if cancelled
+     * @throws IOException on network errors or when the content does not match
      */
-    public void downloadFile(String urlString, File destination) throws IOException {
+    @Override
+    public void download(String urlString, Path destination, String expectedSha512, long expectedSize,
+                         LongConsumer onBytes, BooleanSupplier cancelled) throws IOException {
+        Path part = destination.resolveSibling(destination.getFileName() + PART_SUFFIX);
         HttpURLConnection connection = createConnection(urlString);
-
-        // Download the file
         try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-512");
+            long total = 0;
             try (InputStream in = connection.getInputStream();
-                 FileOutputStream out = new FileOutputStream(destination)) {
-                byte[] buffer = new byte[4096];
-                int bytesRead;
-                while ((bytesRead = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, bytesRead);
-                }
-            } catch (IOException e) {
-                // Clean up partial download on failure
-                if (destination.exists()) {
-                    boolean deleted = destination.delete();
-                    if (!deleted) {
-                        // Log warning not to throw an exception.
-                        System.err.println("Warning: Failed to delete partial file: " + destination.getAbsolutePath());
+                 OutputStream out = Files.newOutputStream(part)) {
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    if (cancelled.getAsBoolean() || Thread.currentThread().isInterrupted()) {
+                        throw new CancellationException("Descarga cancelada");
                     }
+                    total += read;
+                    if (total > expectedSize) {
+                        throw new IOException("El archivo descargado es más grande de lo esperado (" + expectedSize + " bytes)");
+                    }
+                    digest.update(buffer, 0, read);
+                    out.write(buffer, 0, read);
+                    onBytes.accept(read);
                 }
-                throw e;
             }
+            if (total != expectedSize) {
+                throw new IOException("Tamaño incorrecto: " + total + " bytes, se esperaban " + expectedSize);
+            }
+            String actual = HexFormat.of().formatHex(digest.digest());
+            if (!actual.equals(expectedSha512)) {
+                throw new IOException("El hash SHA-512 no coincide; el archivo está corrupto o fue modificado");
+            }
+            try {
+                Files.move(part, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(part, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-512 is required by every Java platform", e);
         } finally {
             connection.disconnect();
+            Files.deleteIfExists(part);
         }
     }
 }

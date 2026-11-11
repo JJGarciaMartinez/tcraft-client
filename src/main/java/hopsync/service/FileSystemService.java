@@ -29,6 +29,13 @@ public class FileSystemService {
     }
 
     /**
+     * Returns the file where HopSync records which files it installed, next to the mods folder.
+     */
+    public File getStateFile() {
+        return new File(new File(getModsFolder().getAbsoluteFile().getParentFile(), ".hopsync"), "state.json");
+    }
+
+    /**
      * Retrieves the directory where Minecraft configuration files are stored.
      * This method returns the "config" folder located inside the Minecraft directory.
      *
