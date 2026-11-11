@@ -19,30 +19,18 @@ A desktop application for managing and updating Minecraft mods for the TCraft mo
 The application follows a modular architecture organized into logical packages:
 
 ```
-src/
-├── Main.java                    # Application entry point
-├── config/                      # Configuration and constants
-│   ├── AppConfig.java          # App version and manifest URL
-│   └── AssetPaths.java         # Asset resource paths
-├── model/                       # Data models
-│   └── ModInfo.java            # Mod metadata record
-├── service/                     # Business logic layer
-│   ├── DownloadService.java    # HTTP download functionality
-│   ├── FileSystemService.java  # File system operations
-│   ├── ModUpdater.java         # Mod update orchestration
-│   └── SystemInfoService.java  # System information gathering
-├── ui/                          # User interface components
-│   ├── LauncherUI.java         # Main window frame
-│   ├── UIController.java       # UI event handling and coordination
-│   ├── HeaderPanel.java        # Top section with system info
-│   ├── ModListPanel.java       # Center panel with mod cards
-│   ├── ControlPanel.java       # Bottom panel with action buttons
-│   ├── ModCard.java            # Individual mod display component
-│   └── [supporting UI classes]
-└── util/                        # Utility classes
-    ├── FontLoader.java         # Custom font loading
-    ├── JsonParser.java         # JSON parsing
-    └── LogMessageParser.java   # Log message formatting
+src/main/java/hopsync/
+├── Main.java          # Application entry point
+├── config/            # App configuration (version, app.properties, asset paths)
+├── event/             # EventBus and the sealed UpdateEvent hierarchy
+├── model/             # Data models (ModInfo)
+├── service/           # Business logic: manifest, downloads, cleanup, update coordination
+├── state/             # Thread-safe update state
+├── ui/                # Swing components and the event handler that updates them
+└── util/              # Font/image loading, JSON parsing
+src/main/resources/    # assets/ (images, font) and app.properties
+src/test/java/         # JUnit 5 tests
+packaging/             # Installer icons used by jpackage
 ```
 
 ## How It Works
@@ -69,25 +57,15 @@ The application uses a **Model-Service-UI** architecture:
 
 ## Development Setup
 
-### Running from IntelliJ IDEA
+The project uses Gradle (wrapper included) and Java 21.
 
-After compiling in IntelliJ, you need to copy assets to the output directory:
-
-**Mac/Linux:**
 ```bash
-./scripts/bash/copy-assets.sh
+./gradlew build   # compile, run tests and build build/libs/TCraftClient.jar
+./gradlew test    # run tests only
+./gradlew run     # launch the app
 ```
 
-**Windows (PowerShell):**
-```powershell
-.\scripts\powershell\copy-assets.ps1
-```
-
-Then run the `Main` class normally from IntelliJ.
-
-**Why?** IntelliJ doesn't maintain the `assets/` folder structure when copying resources. The script ensures assets are in the correct location.
-
-For automatic execution, add the appropriate script as a "Before launch" task in Run Configuration.
+On Windows use `gradlew.bat`. IntelliJ IDEA imports the project directly from `build.gradle.kts`.
 
 ### Building JAR
 
@@ -101,7 +79,7 @@ For automatic execution, add the appropriate script as a "Before launch" task in
 .\scripts\powershell\build-jar.ps1
 ```
 
-This creates `dist/TCraftClient.jar` with all dependencies and resources correctly packaged.
+This runs the Gradle build (including tests) and creates `dist/TCraftClient.jar` plus platform launchers.
 
 ### Creating Installer
 
@@ -126,8 +104,6 @@ Creates platform-specific installers:
 
 | Task | Mac/Linux | Windows PowerShell |
 |------|-----------|-------------------|
-| Copy assets | `./scripts/bash/copy-assets.sh` | `.\scripts\powershell\copy-assets.ps1` |
-| Compile sources | `./scripts/bash/compile-sources.sh` | `.\scripts\powershell\compile-sources.ps1` |
 | Build JAR | `./scripts/bash/build-jar.sh` | `.\scripts\powershell\build-jar.ps1` |
 | Build installer | `./scripts/bash/build-installer.sh` | `.\scripts\powershell\build-installer.ps1` |
 | Verify JAR | `./scripts/bash/verify-jar.sh` | `.\scripts\powershell\verify-jar.ps1` |
@@ -143,7 +119,7 @@ Creates platform-specific installers:
 
 ### For End Users (Non-Technical)
 
-- **Java 16 or higher** (Download from [adoptium.net](https://adoptium.net/))
+- **Java 21 or higher** (only for the JAR distribution; the installers bundle their own runtime) (Download from [adoptium.net](https://adoptium.net/))
 - **Supported Operating Systems:**
   - Windows 7, 8, 10, 11
   - macOS 10.13 (High Sierra) or later
@@ -156,12 +132,12 @@ Creates platform-specific installers:
 ```bash
 java -version
 ```
-If you see version 16 or higher, you're good to go!
+If you see version 21 or higher, you're good to go!
 
 ### For Developers
 
-- Java Development Kit (JDK) 16+
-- IntelliJ IDEA or any Java IDE
+- Java Development Kit (JDK) 21+
+- IntelliJ IDEA or any Java IDE (Gradle import)
 - **Platform-specific requirements:**
   - **macOS**: Xcode Command Line Tools (for building installers)
   - **Windows**: WiX Toolset (installed automatically by build-installer.ps1)

@@ -11,7 +11,6 @@ All scripts are available for both Bash and PowerShell:
 | Task | Mac/Linux | Windows PowerShell |
 |------|-----------|-------------------|
 | Update version | `./scripts/bash/update-version.sh` | `.\scripts\powershell\update-version.ps1` |
-| Compile sources | `./scripts/bash/compile-sources.sh` | `.\scripts\powershell\compile-sources.ps1` |
 | Build JAR | `./scripts/bash/build-jar.sh` | `.\scripts\powershell\build-jar.ps1` |
 | Build installer | `./scripts/bash/build-installer.sh` | `.\scripts\powershell\build-installer.ps1` |
 | Verify JAR | `./scripts/bash/verify-jar.sh` | `.\scripts\powershell\verify-jar.ps1` |
@@ -24,8 +23,8 @@ All scripts are available for both Bash and PowerShell:
 ## Complete Workflow
 
 ```
-1. Update Version → 2. Clean Compile → 3. Build JAR → 4. Build Installer
-   (update-version)     (compile-sources)     (build-jar)     (build-installer)
+1. Update Version → 2. Gradle build → 3. Build JAR → 4. Build Installer
+   (update-version)     (./gradlew build)   (build-jar)     (build-installer)
 ```
 
 ---
@@ -163,19 +162,16 @@ app.vendor=ModInstallerCraft
 
 ---
 
-## Step 2: Compile the Code
+## Step 2: Compile and Test
 
-Before building the JAR, make sure to compile your Java code.
+The project builds with Gradle (wrapper included) on Java 21:
 
-### In IntelliJ IDEA:
-1. Go to **Build → Build Project** (shift+F10 on macOS)
-2. Compiled classes will be saved in `out/production/`
-
-### From Terminal:
 ```bash
-# If using javac manually
-javac -d out/production src/**/*.java
+./gradlew build   # compiles, runs the JUnit tests and writes build/libs/TCraftClient.jar
 ```
+
+`build-jar.sh` runs this step for you. Resources (`src/main/resources/`) and the root
+`version.properties` are packaged into the JAR by Gradle.
 
 ---
 
@@ -197,29 +193,17 @@ The `dist/` directory contains the executable JAR version of your application, i
    ```
    **Note:** Uses `app.version` (the full version with phase identifiers) for filenames and user-facing content.
 
-2. **Creates** the `dist/` directory if it doesn't exist
+2. **Runs** `./gradlew build`, which compiles the sources, runs the tests and packages
+   `src/main/resources/` plus `version.properties` into `build/libs/TCraftClient.jar`.
+   **Important:** `version.properties` is embedded in the JAR for runtime access by `AppConfig.java`.
 
-3. **Copies** assets to the compilation directory:
-   ```bash
-   cp -r assets out/production/
-   ```
+3. **Copies** the JAR to `dist/TCraftClient.jar`
 
-4. **Copies** `version.properties` to include it in the JAR:
-   ```bash
-   cp version.properties out/production/
-   ```
-   **Important:** The entire `version.properties` file (including both `app.version` and `app.version.numeric`) is embedded in the JAR for runtime access by `AppConfig.java`.
+4. **Creates** platform-specific launchers (`.command` for macOS, `.bat` for Windows, `.sh` for Linux)
 
-5. **Generates** the executable JAR using the manifest:
-   ```bash
-   jar cvfm dist/TCraftClient.jar manifest.txt -C out/production .
-   ```
+5. **Generates** README.txt file with usage instructions
 
-6. **Creates** platform-specific launchers (`.command` for macOS, `.bat` for Windows, `.sh` for Linux)
-
-7. **Generates** README.txt file with usage instructions
-
-8. **Creates** a ZIP file with all `dist/` contents using the display version format:
+6. **Creates** a ZIP file with all `dist/` contents using the display version format:
    ```bash
    ${APP_NAME}-${APP_VERSION}.zip
    # Example: TCraft Client-b1.0.3.zip (includes phase identifier)
@@ -315,8 +299,8 @@ The `installer/` directory contains the professional native installer for end-us
        ..."
    
    # Adds conditional options
-   if [ -f "assets/icon.icns" ]; then
-       JPACKAGE_CMD="$JPACKAGE_CMD --icon assets/icon.icns"
+   if [ -f "packaging/icon.icns" ]; then
+       JPACKAGE_CMD="$JPACKAGE_CMD --icon packaging/icon.icns"
    fi
    
    # Executes the command
@@ -351,7 +335,7 @@ The `installer/` directory contains the professional native installer for end-us
      --type dmg \                           # or 'msi' on Windows
      --app-version "$APP_VERSION_NUMERIC" \    # Uses numeric version!
      --vendor "$VENDOR" \
-     --icon assets/icon.icns \              # or .ico on Windows
+     --icon packaging/icon.icns \              # or .ico on Windows
      --dest installer
    ```
    **Critical:** The `--app-version` flag must receive a numeric-only version. This is why `app.version.numeric` exists.
@@ -376,9 +360,9 @@ installer/
 
 | Platform | Format | Extension | Required Icon | Notes |
 |----------|--------|-----------|---------------|-------|
-| macOS    | DMG    | `.dmg`    | `assets/icon.icns` | Requires Xcode Command Line Tools |
-| Windows  | MSI    | `.msi`    | `assets/icon.ico` | WiX Toolset (auto-installed by script) |
-| Linux    | Debian | `.deb`    | `assets/icon.png` | Standard build tools |
+| macOS    | DMG    | `.dmg`    | `packaging/icon.icns` | Requires Xcode Command Line Tools |
+| Windows  | MSI    | `.msi`    | `packaging/icon.ico` | WiX Toolset (auto-installed by script) |
+| Linux    | Debian | `.deb`    | `packaging/icon.png` | Standard build tools |
 
 ### When to use installer/?
 
@@ -396,23 +380,20 @@ installer/
 # 1. Update version (auto-detects numeric version)
 ./scripts/bash/update-version.sh b26.1.0
 
-# 2. Clean compile with assets
-./scripts/bash/compile-sources.sh
-
-# 3. Create JAR for testing
+# 2. Build the JAR (Gradle compiles and runs the tests)
 ./scripts/bash/build-jar.sh
 
-# 4. Test the JAR
+# 3. Test the JAR
 java -jar dist/TCraftClient.jar
 
-# 5. If everything works, you have:
+# 4. If everything works, you have:
 #    - dist/TCraftClient.jar (for direct execution)
 #    - TCraft Client-b26.1.0.zip (for distribution with phase identifier)
 
-# 6. Optionally, create production installer
+# 5. Optionally, create production installer
 ./scripts/bash/build-installer.sh
 
-# 7. Files ready for distribution:
+# 6. Files ready for distribution:
 ls -la *.zip installer/
 # TCraft Client-b26.1.0.zip          <- Cross-platform ZIP (displays b26.1.0)
 # installer/TCraft Client-b26.1.0.dmg <- Native installer macOS (displays b26.1.0)
@@ -426,10 +407,7 @@ ls -la *.zip installer/
 # 1. Update version (both versions will be 26.1.0)
 ./scripts/bash/update-version.sh 26.1.0
 
-# 2. Clean compile
-./scripts/bash/compile-sources.sh
-
-# 3-7. Same steps as above...
+# 2-6. Same steps as above...
 
 # Result files:
 # TCraft Client-26.1.0.zip          <- Cross-platform ZIP
@@ -444,8 +422,6 @@ ls -la *.zip installer/
 # 1. Update version for bug fix
 ./scripts/bash/update-version.sh 26.1.1
 
-# 2. Clean compile and build
-./scripts/bash/compile-sources.sh
 ./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh
 
 # Result: TCraft Client-26.1.1.dmg (patch release on macOS)
@@ -455,31 +431,29 @@ ls -la *.zip installer/
 ### Quick Build (Complete Pipeline):
 ```bash
 ./scripts/bash/update-version.sh b26.1.0 && \
-./scripts/bash/compile-sources.sh && \
 ./scripts/bash/build-jar.sh && \
 ./scripts/bash/build-installer.sh
 ```
 
 This single command:
 1. Updates the version
-2. Compiles with clean output
-3. Builds the JAR and ZIP
-4. Creates the native installer
+2. Builds and tests with Gradle, then creates the JAR and ZIP
+3. Creates the native installer
 
 ---
 
 ## Prerequisites
 
-- **Java 14+** (You have Java 21)
-- **Compiled code** in `out/production/`
+- **JDK 21+**
+- **Compiled code** in `build/` (Gradle)
 - **Platform-specific requirements:**
   - **macOS**: Xcode Command Line Tools
   - **Windows**: WiX Toolset (installed automatically by build-installer.ps1)
   - **Linux**: Standard build tools
 - **Icons** (optional but recommended):
-  - `assets/icon.icns` - macOS (512x512px)
-  - `assets/icon.ico` - Windows (256x256px)
-  - `assets/icon.png` - Linux (512x512px)
+  - `packaging/icon.icns` - macOS (512x512px)
+  - `packaging/icon.ico` - Windows (256x256px)
+  - `packaging/icon.png` - Linux (512x512px)
 
 ---
 
@@ -548,7 +522,6 @@ jar tf dist/TCraftClient.jar | grep -E "(assets|version.properties)"
 
 # You should see:
 # version.properties
-# assets/icon.png
 # assets/font/minecraft-mojangles.ttf
 # ...
 ```
@@ -556,8 +529,7 @@ jar tf dist/TCraftClient.jar | grep -E "(assets|version.properties)"
 ### Version in app doesn't match
 ```bash
 # Clean completely and rebuild
-rm -rf out dist installer
-# Compile in IntelliJ (Build → Rebuild Project)
+rm -rf build dist installer
 ./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh
 ```
 
