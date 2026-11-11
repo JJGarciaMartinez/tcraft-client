@@ -24,6 +24,7 @@ import java.awt.event.MouseEvent;
 public class ControlPanel extends JPanel {
     private final JButton updateButton;
     private final JButton refreshButton;
+    private final JButton settingsButton;
     private final JLabel statusLabel;
     private final ImageIcon updateIcon;
     private final ImageIcon cancelIcon;
@@ -108,9 +109,19 @@ public class ControlPanel extends JPanel {
         refreshButton.setBorderPainted(false);
         addPressEffect(refreshButton);
 
+        // Settings button (text, no icon asset yet)
+        settingsButton = new JButton("Ajustes");
+        settingsButton.setFont(FontLoader.getMinecraftFont(12f));
+        settingsButton.setForeground(AppProperties.getTextPrimary());
+        settingsButton.setBackground(AppProperties.getBackgroundMedium());
+        settingsButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        settingsButton.setFocusPainted(false);
+        settingsButton.setPreferredSize(new Dimension(settingsButton.getPreferredSize().width, 35));
+
         // Add buttons to the panel
         buttonPanel.add(updateButton);
         buttonPanel.add(refreshButton);
+        buttonPanel.add(settingsButton);
 
         // Status label in the right position
         statusLabel = new JLabel("Listo para actualizar");
@@ -168,6 +179,13 @@ public class ControlPanel extends JPanel {
     }
 
     /**
+     * Sets the {@link ActionListener} that opens the settings dialog.
+     */
+    public void setSettingsButtonListener(ActionListener listener) {
+        settingsButton.addActionListener(listener);
+    }
+
+    /**
      * Updates the state of the user interface to reflect whether an update is in progress.
      * Depending on the value of {@code inProgress}, this method adjusts the appearance
      * and behavior of the update button, enables or disables the refresh button, and refreshes
@@ -200,6 +218,7 @@ public class ControlPanel extends JPanel {
                 updateButton.addActionListener(updateListener);
             }
             refreshButton.setEnabled(!inProgress);
+            settingsButton.setEnabled(!inProgress);
             revalidate();
             repaint();
         });

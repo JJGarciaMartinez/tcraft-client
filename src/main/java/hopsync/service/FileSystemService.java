@@ -1,70 +1,68 @@
 package hopsync.service;
 
+import hopsync.config.UserSettings;
+
 import java.io.File;
+import java.nio.file.Path;
+import java.util.Locale;
 
 /**
- * A service for accessing and managing the file system related to a Minecraft installation,
- * specifically focusing on the mods folder and its contents.
+ * Resolves the game folders HopSync works with: the folder chosen in settings, or the default
+ * Minecraft installation when the player has not chosen one.
  */
 public class FileSystemService {
+    private final SettingsService settingsService;
 
-    /**
-     * Retrieves the directory where Minecraft mods are stored. If the launcher is
-     * being run from a directory named "mods," that directory is returned. Otherwise,
-     * it returns the "mods" folder located inside the Minecraft directory.
-     *
-     * @return A {@code File} object representing the path to the mods' folder. If the
-     *         current working directory is named "mods," it returns that directory.
-     *         Otherwise, it constructs and returns the "mods" folder within the
-     *         Minecraft directory.
-     */
-    public File getModsFolder() {
-        // If the user running the launcher from the mods' folder, return the directory to the mods.
-        File currentDir = new File(System.getProperty("user.dir"));
-        if (currentDir.getName().equalsIgnoreCase("mods")) {
-            return currentDir;
-        }
-
-        return new File(getMinecraftDirectory(), "mods");
+    public FileSystemService(SettingsService settingsService) {
+        this.settingsService = settingsService;
     }
 
     /**
-     * Returns the file where HopSync records which files it installed, next to the mods folder.
+     * The folder that contains {@code mods/} and {@code config/}.
+     */
+    public File getGameDir() {
+        return settingsService.get()
+            .map(UserSettings::gameDir)
+            .orElseGet(FileSystemService::detectDefaultGameDir)
+            .toFile();
+    }
+
+    public File getModsFolder() {
+        return new File(getGameDir(), "mods");
+    }
+
+    public File getConfigFolder() {
+        return new File(getGameDir(), "config");
+    }
+
+    /**
+     * Returns the file where HopSync records which files it installed in this game folder.
      */
     public File getStateFile() {
-        return new File(new File(getModsFolder().getAbsoluteFile().getParentFile(), ".hopsync"), "state.json");
+        return new File(new File(getGameDir(), ".hopsync"), "state.json");
+    }
+
+    public static Path detectDefaultGameDir() {
+        return defaultGameDir(System.getProperty("os.name"), System.getProperty("user.home"),
+            Path.of(System.getProperty("user.dir")));
     }
 
     /**
-     * Retrieves the directory where Minecraft configuration files are stored.
-     * This method returns the "config" folder located inside the Minecraft directory.
-     *
-     * @return A {@code File} object representing the path to the config folder.
+     * When launched from inside a {@code mods} folder, its parent is the game folder; otherwise the
+     * standard Minecraft location for the operating system.
      */
-    public File getConfigFolder() {
-        return new File(getMinecraftDirectory(), "config");
-    }
-
-    /**
-     * Retrieves the directory where Minecraft is installed based on the user's operating system.
-     * This method determines the folder path by checking the OS type and constructing the appropriate
-     * directory path for Windows, macOS, or Linux.
-     *
-     * @return A {@code File} object representing the Minecraft installation directory.
-     *         For Windows, this is typically "AppData/Roaming/.minecraft".
-     *         For macOS, this is typically "Library/Application Support/minecraft".
-     *         For Linux, this is typically ".minecraft" in the user's home directory.
-     */
-    private File getMinecraftDirectory() {
-        String os = System.getProperty("os.name").toLowerCase();
-        String userHome = System.getProperty("user.home");
-
-        if (os.contains("win")) {
-            return new File(userHome, "AppData/Roaming/.minecraft");
-        } else if (os.contains("mac")) {
-            return new File(userHome, "Library/Application Support/minecraft");
-        } else {
-            return new File(userHome, ".minecraft");
+    static Path defaultGameDir(String osName, String userHome, Path workingDir) {
+        Path cwd = workingDir.toAbsolutePath().normalize();
+        if (cwd.getFileName() != null && cwd.getFileName().toString().equalsIgnoreCase("mods") && cwd.getParent() != null) {
+            return cwd.getParent();
         }
+        String os = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
+        Path home = Path.of(userHome);
+        if (os.contains("win")) {
+            return home.resolve("AppData").resolve("Roaming").resolve(".minecraft");
+        } else if (os.contains("mac")) {
+            return home.resolve("Library").resolve("Application Support").resolve("minecraft");
+        }
+        return home.resolve(".minecraft");
     }
 }

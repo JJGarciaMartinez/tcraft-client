@@ -33,10 +33,12 @@ public class UpdateEventHandler {
             }
             case UpdateEvent.PlanReady e -> {
                 showPlan(e.plan());
+                ui.getHeaderPanel().showPack(e.plan().manifest().pack());
                 ui.getControlPanel().updateStatus("Revisa los cambios antes de aplicarlos");
             }
             case UpdateEvent.UpToDate e -> {
                 showPlan(e.plan());
+                ui.getHeaderPanel().showPack(e.plan().manifest().pack());
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getHeaderPanel().setStatusSuccess();
                 PackInfo pack = e.plan().manifest().pack();
