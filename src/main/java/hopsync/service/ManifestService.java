@@ -1,14 +1,12 @@
 package hopsync.service;
 
 import hopsync.config.AppProperties;
-import hopsync.model.ModInfo;
-import hopsync.util.JsonParser;
+import hopsync.model.Manifest;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
- * Handles fetching and parsing the mod manifest from the server.
+ * Downloads and validates the modpack manifest.
  */
 public class ManifestService {
     private final DownloadService downloadService;
@@ -17,15 +15,8 @@ public class ManifestService {
         this.downloadService = downloadService;
     }
 
-    public List<ModInfo> fetchManifest() throws IOException {
-        String url = AppProperties.getManifestUrl();
-        String jsonContent = downloadService.getUrlString(url);
-        List<ModInfo> mods = JsonParser.jsonSimpleParse(jsonContent);
-
-        if (mods.isEmpty()) {
-            throw new IOException("No se encontraron mods válidos en el manifest del servidor");
-        }
-
-        return mods;
+    public Manifest fetchManifest() throws IOException {
+        String json = downloadService.getUrlString(AppProperties.getManifestUrl());
+        return ManifestParser.parse(json);
     }
 }

@@ -1,15 +1,20 @@
 package hopsync.service;
 
 import hopsync.event.UpdateEvent;
+import hopsync.model.ConfigEntry;
+import hopsync.model.ModEntry;
 import hopsync.model.ModInfo;
+import hopsync.util.SafePaths;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Handles downloading of mod files.
+ * Handles downloading of mod and config files.
  */
 public class ModDownloadService {
     private final DownloadService downloadService;
@@ -20,56 +25,61 @@ public class ModDownloadService {
         this.fileSystemService = fileSystemService;
     }
 
-    public void downloadMods(List<ModInfo> mods, Consumer<UpdateEvent> eventPublisher) {
-        File modsFolder = fileSystemService.getModsFolder();
-        File configFolder = fileSystemService.getConfigFolder();
+    public void downloadMods(List<ModEntry> mods, Consumer<UpdateEvent> eventPublisher) {
+        Path modsFolder = fileSystemService.getModsFolder().toPath();
         int total = mods.size();
         int processed = 0;
 
-        for (ModInfo mod : mods) {
+        for (ModEntry mod : mods) {
             if (Thread.currentThread().isInterrupted()) {
                 return;
             }
 
             processed++;
             eventPublisher.accept(new UpdateEvent.ProgressChanged(processed, total));
-            eventPublisher.accept(new UpdateEvent.ModProcessing(mod));
+            eventPublisher.accept(new UpdateEvent.ModProcessing(ModInfo.of(mod)));
 
             try {
-                File destination = new File(modsFolder, mod.name());
+                File destination = SafePaths.resolveInside(modsFolder, mod.file()).toFile();
 
                 if (destination.exists()) {
-                    eventPublisher.accept(new UpdateEvent.ModAlreadyInstalled(mod.name()));
-                    eventPublisher.accept(new UpdateEvent.LogMessage("OK: " + mod.name() + " (ya existe)"));
+                    eventPublisher.accept(new UpdateEvent.ModAlreadyInstalled(mod.file()));
+                    eventPublisher.accept(new UpdateEvent.LogMessage("OK: " + mod.file() + " (ya existe)"));
                 } else {
-                    eventPublisher.accept(new UpdateEvent.ModDownloading(mod.name()));
-                    eventPublisher.accept(new UpdateEvent.LogMessage("Descargando: " + mod.name()));
+                    eventPublisher.accept(new UpdateEvent.ModDownloading(mod.file()));
+                    eventPublisher.accept(new UpdateEvent.LogMessage("Descargando: " + mod.file()));
                     downloadService.downloadFile(mod.url(), destination);
-                    eventPublisher.accept(new UpdateEvent.LogMessage("Completado: " + mod.name()));
-                    eventPublisher.accept(new UpdateEvent.ModCompleted(mod.name(), true));
+                    eventPublisher.accept(new UpdateEvent.LogMessage("Completado: " + mod.file()));
+                    eventPublisher.accept(new UpdateEvent.ModCompleted(mod.file(), true));
                 }
-
-                downloadConfig(mod, configFolder, eventPublisher);
-
             } catch (IOException e) {
-                eventPublisher.accept(new UpdateEvent.ModError(mod.name(), e.getMessage()));
-                eventPublisher.accept(new UpdateEvent.LogMessage("Error en " + mod.name() + ": " + e.getMessage()));
-                eventPublisher.accept(new UpdateEvent.ModCompleted(mod.name(), false));
+                eventPublisher.accept(new UpdateEvent.ModError(mod.file(), e.getMessage()));
+                eventPublisher.accept(new UpdateEvent.LogMessage("Error en " + mod.file() + ": " + e.getMessage()));
+                eventPublisher.accept(new UpdateEvent.ModCompleted(mod.file(), false));
             }
         }
     }
 
-    private void downloadConfig(ModInfo mod, File configFolder, Consumer<UpdateEvent> eventPublisher) {
-        if (mod.configUrl() != null && mod.configName() != null
-                && !mod.configUrl().isEmpty() && !mod.configName().isEmpty()) {
-            File configDestination = new File(configFolder, mod.configName());
+    public void downloadConfigs(List<ConfigEntry> configs, Consumer<UpdateEvent> eventPublisher) {
+        Path configFolder = fileSystemService.getConfigFolder().toPath();
+
+        for (ConfigEntry config : configs) {
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
             try {
-                eventPublisher.accept(new UpdateEvent.LogMessage("Descargando config: " + mod.configName()));
-                downloadService.downloadFile(mod.configUrl(), configDestination);
-                eventPublisher.accept(new UpdateEvent.LogMessage("Config completado: " + mod.configName()));
+                Path destination = SafePaths.resolveInside(configFolder, config.path());
+                if (!config.overwrite() && Files.exists(destination)) {
+                    eventPublisher.accept(new UpdateEvent.LogMessage("Config conservada: " + config.path()));
+                    continue;
+                }
+                Files.createDirectories(destination.getParent());
+                eventPublisher.accept(new UpdateEvent.LogMessage("Descargando config: " + config.path()));
+                downloadService.downloadFile(config.url(), destination.toFile());
+                eventPublisher.accept(new UpdateEvent.LogMessage("Config completado: " + config.path()));
             } catch (IOException e) {
                 eventPublisher.accept(new UpdateEvent.LogMessage(
-                    "Advertencia: No se pudo descargar " + mod.configName() + ": " + e.getMessage()));
+                    "Advertencia: No se pudo descargar " + config.path() + ": " + e.getMessage()));
             }
         }
     }

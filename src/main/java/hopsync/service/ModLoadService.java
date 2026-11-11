@@ -29,15 +29,7 @@ public class ModLoadService {
         if (jarFiles == null) return mods;
 
         for (File jar : jarFiles) {
-            mods.add(new ModInfo(
-                jar.getName(),
-                "Instalado",
-                "",
-                "",
-                "",
-                null,
-                null
-            ));
+            mods.add(ModInfo.installed(jar.getName()));
         }
 
         return mods;

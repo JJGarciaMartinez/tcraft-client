@@ -106,9 +106,8 @@ public class ModListPanel extends JPanel {
             modsContainer.remove(emptyLabel);
         }
 
-        System.out.println("✅ Creando ModCard con key: '" + modInfo.name() + "'");
         ModCard card = new ModCard(modInfo);
-        modCards.put(modInfo.name(), card);
+        modCards.put(modInfo.file(), card);
         modsContainer.add(card);
         modsContainer.add(Box.createVerticalStrut(10));
         modsContainer.revalidate();

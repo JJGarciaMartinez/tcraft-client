@@ -1,6 +1,7 @@
 package hopsync.service;
 
 import hopsync.event.UpdateEvent;
+import hopsync.model.Manifest;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,16 +36,18 @@ public class ModUpdateService {
 
         // 2. Fetch manifest
         eventPublisher.accept(new UpdateEvent.LogMessage("Obteniendo lista de mods del servidor..."));
-        var remoteMods = manifestService.fetchManifest();
-        eventPublisher.accept(new UpdateEvent.LogMessage("Encontrados " + remoteMods.size() + " mods en el servidor."));
+        Manifest manifest = manifestService.fetchManifest();
+        eventPublisher.accept(new UpdateEvent.LogMessage("Pack: " + manifest.pack().name() + " " + manifest.pack().version()
+            + " - " + manifest.mods().size() + " mods, " + manifest.configs().size() + " configs."));
 
         // 3. Clean up outdated mods
         eventPublisher.accept(new UpdateEvent.LogMessage("--- Verificando archivos antiguos ---"));
-        cleanupService.removeOutdatedMods(remoteMods, eventPublisher);
+        cleanupService.removeOutdatedMods(manifest.mods(), eventPublisher);
 
-        // 4. Download new/updated mods
+        // 4. Download new/updated mods and configs
         eventPublisher.accept(new UpdateEvent.LogMessage("--- Verificando actualizaciones ---"));
-        downloadService.downloadMods(remoteMods, eventPublisher);
+        downloadService.downloadMods(manifest.mods(), eventPublisher);
+        downloadService.downloadConfigs(manifest.configs(), eventPublisher);
 
         eventPublisher.accept(new UpdateEvent.LogMessage("\n--- ¡ACTUALIZACIÓN COMPLETADA! ---"));
         eventPublisher.accept(new UpdateEvent.LogMessage("Puedes cerrar esta ventana y jugar."));
