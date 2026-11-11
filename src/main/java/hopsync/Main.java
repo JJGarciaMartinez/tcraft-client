@@ -1,6 +1,9 @@
 package hopsync;
 
+import hopsync.ui.DisplayScaling;
 import hopsync.ui.UIController;
+
+import javax.swing.SwingUtilities;
 
 /**
  * The Main class serves as the entry point for the Tcraft Client mod updater application.
@@ -8,6 +11,8 @@ import hopsync.ui.UIController;
  */
 public class Main {
     public static void main(String[] args) {
-        UIController.create();
+        // Before any AWT class loads, or the scale is ignored
+        DisplayScaling.configure();
+        SwingUtilities.invokeLater(UIController::create);
     }
 }

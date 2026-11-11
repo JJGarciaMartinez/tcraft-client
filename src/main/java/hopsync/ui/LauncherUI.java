@@ -17,6 +17,11 @@ import java.awt.*;
  * - Integrates a file system service used for utility operations and passing it to relevant components.
  */
 public class LauncherUI extends JFrame {
+    private static final int PREFERRED_WIDTH = 900;
+    private static final int PREFERRED_HEIGHT = 680;
+    private static final int MIN_WIDTH = 800;
+    private static final int MIN_HEIGHT = 600;
+
     private final HeaderPanel headerPanel;
     private final ModListPanel modListPanel;
     private final ControlPanel controlPanel;
@@ -38,8 +43,7 @@ public class LauncherUI extends JFrame {
      */
     public LauncherUI() {
         super("Tcraft Client - Actualizador de Mods");
-        setSize(850, 600);
-        setMinimumSize(new Dimension(800, 600));
+        sizeToScreen();
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
         setLocationRelativeTo(null);
@@ -56,6 +60,18 @@ public class LauncherUI extends JFrame {
         add(headerPanel, BorderLayout.NORTH);
         add(modListPanel, BorderLayout.CENTER);
         add(controlPanel, BorderLayout.SOUTH);
+    }
+
+    /**
+     * Uses the preferred size but never more than 90% of the usable screen area, so the window fits
+     * small or heavily scaled screens.
+     */
+    private void sizeToScreen() {
+        Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+        int maxWidth = (int) (usable.width * 0.9);
+        int maxHeight = (int) (usable.height * 0.9);
+        setMinimumSize(new Dimension(Math.min(MIN_WIDTH, maxWidth), Math.min(MIN_HEIGHT, maxHeight)));
+        setSize(Math.min(PREFERRED_WIDTH, maxWidth), Math.min(PREFERRED_HEIGHT, maxHeight));
     }
 
     /**
