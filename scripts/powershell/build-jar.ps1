@@ -4,7 +4,6 @@
 $ErrorActionPreference = "Stop"
 
 # Directory configuration (Windows paths)
-$OUTPUT_DIR = "out\production\tcraft-client"
 $DIST_DIR = "dist"
 $JAR_FILE = "$DIST_DIR\TCraftClient.jar"
 
@@ -30,53 +29,16 @@ Write-Host "  Building $APP_NAME v$APP_VERSION" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Compile sources first
-Write-Host "[1/5] Compiling sources..." -ForegroundColor Yellow
-& ".\scripts\powershell\compile-sources.ps1"
+# Build the JAR with Gradle (compiles, runs tests and packages resources)
+Write-Host "[1/3] Building JAR with Gradle..." -ForegroundColor Yellow
+& ".\gradlew.bat" --quiet build
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Compilation failed, cannot build JAR" -ForegroundColor Red
+    Write-Host "[ERROR] Gradle build failed, cannot build JAR" -ForegroundColor Red
     exit 1
 }
-Write-Host ""
-
-# Create dist directory if it doesn't exist
 New-Item -ItemType Directory -Path $DIST_DIR -Force | Out-Null
-
-# Clean old assets from production output
-Write-Host "[2/5] Cleaning old artifacts..." -ForegroundColor Yellow
-$cleanPaths = @(
-    "$OUTPUT_DIR\assets",
-    "$OUTPUT_DIR\version.properties",
-    "$OUTPUT_DIR\*.png",
-    "$OUTPUT_DIR\*.icns",
-    "$OUTPUT_DIR\*.ico",
-    "$OUTPUT_DIR\font"
-)
-
-foreach ($path in $cleanPaths) {
-    if (Test-Path $path) {
-        Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
-Write-Host "[OK]" -ForegroundColor Green -NoNewline
-Write-Host " Cleaned stale resources"
+Copy-Item -Path "build\libs\$APP_NAME.jar" -Destination $JAR_FILE -Force
 Write-Host ""
-
-# Copy assets to production output
-Write-Host "[3/5] Packaging resources..." -ForegroundColor Yellow
-Copy-Item -Path "assets" -Destination "$OUTPUT_DIR\" -Recurse -Force
-Write-Host "[OK]" -ForegroundColor Green -NoNewline
-Write-Host " Assets copied"
-
-# Copy version.properties to production output
-Copy-Item -Path "version.properties" -Destination "$OUTPUT_DIR\" -Force
-Write-Host "[OK]" -ForegroundColor Green -NoNewline
-Write-Host " version.properties copied"
-Write-Host ""
-
-# Create JAR file
-Write-Host "[4/5] Creating JAR archive..." -ForegroundColor Yellow
-jar cvfm $JAR_FILE manifest.txt -C $OUTPUT_DIR . | Out-Null
 
 # Verify JAR was created
 if (Test-Path $JAR_FILE) {
@@ -95,7 +57,7 @@ if (Test-Path $JAR_FILE) {
 Write-Host ""
 
 # Create platform-specific launchers
-Write-Host "[5/5] Creating platform launchers..." -ForegroundColor Yellow
+Write-Host "[2/3] Creating platform launchers..." -ForegroundColor Yellow
 
 # macOS launcher (.command)
 @'
@@ -150,7 +112,7 @@ Linux:    Run "./TCraft Client.sh" in terminal
 Any OS:   Run "java -jar TCraftClient.jar" in terminal
 
 ## Requirements
-- Java 16 or higher
+- Java 21 or higher
 
 Check version: java -version
 Download Java: https://adoptium.net/

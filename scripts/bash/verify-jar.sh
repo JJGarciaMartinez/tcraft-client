@@ -58,8 +58,8 @@ echo -e "${YELLOW}[3/10] Checking MANIFEST.MF...${RESET}"
 MANIFEST=$(unzip -p dist/TCraftClient.jar META-INF/MANIFEST.MF 2>/dev/null)
 MAIN_CLASS=$(echo "$MANIFEST" | grep "Main-Class" | cut -d' ' -f2 | tr -d '\r\n ')
 
-if [ "$MAIN_CLASS" = "Main" ]; then
-    echo -e "        ${GREEN}[OK]${RESET} Main-Class configured correctly: ${CYAN}Main${RESET}"
+if [ "$MAIN_CLASS" = "hopsync.Main" ]; then
+    echo -e "        ${GREEN}[OK]${RESET} Main-Class configured correctly: ${CYAN}hopsync.Main${RESET}"
 else
     echo -e "        ${RED}[ERROR]${RESET} Main-Class incorrect or missing: ${CYAN}'$MAIN_CLASS'${RESET}"
     ERRORS=$((ERRORS + 1))
@@ -68,7 +68,7 @@ echo ""
 
 # 4. Check Main.class exists
 echo -e "${YELLOW}[4/10] Checking main class...${RESET}"
-if unzip -l dist/TCraftClient.jar 2>/dev/null | grep -q "Main.class"; then
+if unzip -l dist/TCraftClient.jar 2>/dev/null | grep -q "hopsync/Main.class"; then
     echo -e "        ${GREEN}[OK]${RESET} Main.class found in JAR"
 else
     echo -e "        ${RED}[ERROR]${RESET} Main.class not found"
@@ -112,7 +112,6 @@ echo -e "        ${CYAN}[INFO]${RESET} Asset files: ${CYAN}$ASSETS_COUNT${RESET}
 CRITICAL_ASSETS=(
     "minecraft-mojangles.ttf"
     "minecraft_title.png"
-    "icon.png"
 )
 
 MISSING_ASSETS=0
@@ -162,7 +161,7 @@ echo -e "${YELLOW}[8/10] Checking distribution ZIP...${RESET}"
 ZIP_FILES=(*.zip)
 if [ -e "${ZIP_FILES[0]}" ]; then
     for zip in *.zip; do
-        if [[ $zip == *"TCraft Client"* ]]; then
+        if [[ $zip == *"TCraftClient"* ]]; then
             echo -e "        ${GREEN}[OK]${RESET} Distribution ZIP found: ${BLUE}$zip${RESET}"
             ZIP_SIZE=$(ls -lh "$zip" | awk '{print $5}')
             echo -e "        ${CYAN}[INFO]${RESET} ZIP size: ${CYAN}$ZIP_SIZE${RESET}"
@@ -185,7 +184,7 @@ sleep 2
 if ps -p $JAR_PID > /dev/null 2>&1; then
     echo -e "        ${GREEN}[OK]${RESET} JAR running correctly (PID: ${CYAN}$JAR_PID${RESET})"
     kill $JAR_PID 2>/dev/null
-    wait $JAR_PID 2>/dev/null
+    wait $JAR_PID 2>/dev/null || true
     echo -e "        ${GREEN}[OK]${RESET} Process terminated cleanly"
 else
     echo -e "        ${RED}[ERROR]${RESET} JAR failed to start or terminated immediately"
@@ -225,7 +224,7 @@ if [ $ERRORS -eq 0 ]; then
     echo -e "${BOLD}The JAR is ready to:${RESET}"
     echo -e "  • Execute:          ${BLUE}java -jar dist/TCraftClient.jar${RESET}"
     echo -e "  • Test launchers:   ${BLUE}./dist/TCraft Client.(command|bat|sh)${RESET}"
-    echo -e "  • Distribute ZIP:   Look for ${BLUE}TCraft Client-*.zip${RESET}"
+    echo -e "  • Distribute ZIP:   Look for ${BLUE}TCraftClient-*.zip${RESET}"
     echo -e "  • Create installer: ${BLUE}./build-installer.sh${RESET}"
     echo ""
     exit 0

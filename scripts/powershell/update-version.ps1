@@ -85,7 +85,7 @@ Write-Host "    Installer version: " -NoNewline
 Write-Host "$NewVersionNumeric" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor White
-Write-Host "  .\scripts\powershell\compile-sources.ps1; .\scripts\powershell\build-jar.ps1; .\scripts\powershell\build-installer.ps1" -ForegroundColor Blue
+Write-Host "  .\scripts\powershell\build-jar.ps1; .\scripts\powershell\build-installer.ps1" -ForegroundColor Blue
 Write-Host ""
 
 

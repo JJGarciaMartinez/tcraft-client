@@ -58,7 +58,7 @@ if [ "$COMPONENT_COUNT" -gt 3 ]; then
     exit 1
 fi
 
-MAIN_CLASS="Main"
+MAIN_CLASS="hopsync.Main"
 JAR_FILE="dist/TCraftClient.jar"
 
 echo -e "${BOLD}${CYAN}================================================================${RESET}"
@@ -104,9 +104,9 @@ case "$(uname -s)" in
             --java-options '-Dfile.encoding=UTF-8'"
 
         # Add icon if it exists
-        if [ -f "assets/icon.icns" ]; then
-            JPACKAGE_CMD="$JPACKAGE_CMD --icon assets/icon.icns"
-            echo -e "${GREEN}[OK]${RESET} Using custom icon: ${BLUE}assets/icon.icns${RESET}"
+        if [ -f "packaging/icon.icns" ]; then
+            JPACKAGE_CMD="$JPACKAGE_CMD --icon packaging/icon.icns"
+            echo -e "${GREEN}[OK]${RESET} Using custom icon: ${BLUE}packaging/icon.icns${RESET}"
         else
             echo -e "${YELLOW}[WARN]${RESET} icon.icns not found, building without custom icon"
         fi
@@ -161,9 +161,9 @@ case "$(uname -s)" in
             --linux-package-name \"tcraft-client\""
 
         # Add icon if it exists
-        if [ -f "assets/icon.png" ]; then
-            JPACKAGE_CMD="$JPACKAGE_CMD --icon assets/icon.png"
-            echo -e "${GREEN}[OK]${RESET} Using custom icon: ${BLUE}assets/icon.png${RESET}"
+        if [ -f "packaging/icon.png" ]; then
+            JPACKAGE_CMD="$JPACKAGE_CMD --icon packaging/icon.png"
+            echo -e "${GREEN}[OK]${RESET} Using custom icon: ${BLUE}packaging/icon.png${RESET}"
         else
             echo -e "${YELLOW}[WARN]${RESET} icon.png not found, building without custom icon"
         fi
@@ -175,11 +175,16 @@ case "$(uname -s)" in
 
         if [ $? -eq 0 ]; then
             # Rename installer to use display version (with phase identifier)
-            if [ -f "installer/tcraft-client_${APP_VERSION_NUMERIC}-1_amd64.deb" ]; then
-                mv "installer/tcraft-client_${APP_VERSION_NUMERIC}-1_amd64.deb" "installer/tcraft-client_${APP_VERSION}-1_amd64.deb"
+            # jpackage names it <package>_<numeric version>[-<release>]_<arch>.deb depending on the JDK
+            DEB_BUILT=$(ls installer/tcraft-client_${APP_VERSION_NUMERIC}*.deb 2>/dev/null | head -1)
+            if [ -z "$DEB_BUILT" ]; then
+                echo -e "${RED}[ERROR]${RESET} jpackage succeeded but no .deb was found in installer/"
+                exit 1
             fi
-            DEB_SIZE=$(ls -lh "installer/tcraft-client_$APP_VERSION-1_amd64.deb" | awk '{print $5}')
-            echo -e "${GREEN}[OK]${RESET} Linux installer created: ${BLUE}installer/tcraft-client_$APP_VERSION-1_amd64.deb${RESET} (${CYAN}${DEB_SIZE}${RESET})"
+            DEB_FILE="${DEB_BUILT/_${APP_VERSION_NUMERIC}/_${APP_VERSION}}"
+            [ "$DEB_BUILT" != "$DEB_FILE" ] && mv "$DEB_BUILT" "$DEB_FILE"
+            DEB_SIZE=$(ls -lh "$DEB_FILE" | awk '{print $5}')
+            echo -e "${GREEN}[OK]${RESET} Linux installer created: ${BLUE}${DEB_FILE}${RESET} (${CYAN}${DEB_SIZE}${RESET})"
         else
             echo -e "${RED}[ERROR]${RESET} Failed to create Linux installer"
             exit 1
@@ -214,9 +219,9 @@ case "$(uname -s)" in
         fi
 
         # Add icon if it exists
-        if [ -f "assets/icon.ico" ]; then
-            JPACKAGE_CMD="$JPACKAGE_CMD --icon assets/icon.ico"
-            echo -e "${GREEN}[OK]${RESET} Using custom icon: ${BLUE}assets/icon.ico${RESET}"
+        if [ -f "packaging/icon.ico" ]; then
+            JPACKAGE_CMD="$JPACKAGE_CMD --icon packaging/icon.ico"
+            echo -e "${GREEN}[OK]${RESET} Using custom icon: ${BLUE}packaging/icon.ico${RESET}"
         else
             echo -e "${YELLOW}[WARN]${RESET} icon.ico not found, building without custom icon"
         fi

@@ -41,40 +41,12 @@ echo -e "${BOLD}${CYAN}  Building ${APP_NAME} v${APP_VERSION}${RESET}"
 echo -e "${BOLD}${CYAN}================================================================${RESET}"
 echo ""
 
-# Compile sources first
-echo -e "${YELLOW}[1/5] Compiling sources...${RESET}"
-./scripts/bash/compile-sources.sh
-if [ $? -ne 0 ]; then
-    echo -e "${RED}[ERROR]${RESET} Compilation failed, cannot build JAR"
-    exit 1
-fi
-echo ""
-
-# Create dist directory if it doesn't exist
+# Build the JAR with Gradle (compiles, runs tests and packages resources)
+echo -e "${YELLOW}[1/3] Building JAR with Gradle...${RESET}"
+./gradlew --quiet build
 mkdir -p dist
-
-# Clean old assets from production output
-echo -e "${YELLOW}[2/5] Cleaning old artifacts...${RESET}"
-rm -rf out/production/tcraft-client/assets
-rm -f out/production/tcraft-client/version.properties
-rm -f out/production/tcraft-client/*.png out/production/tcraft-client/*.icns out/production/tcraft-client/*.ico
-rm -rf out/production/tcraft-client/font
-echo -e "${GREEN}[OK]${RESET} Cleaned stale resources"
+cp "build/libs/${APP_NAME}.jar" "dist/TCraftClient.jar"
 echo ""
-
-# Copy assets to production output
-echo -e "${YELLOW}[3/5] Packaging resources...${RESET}"
-cp -r assets out/production/tcraft-client/
-echo -e "${GREEN}[OK]${RESET} Assets copied"
-
-# Copy version.properties to production output
-cp version.properties out/production/tcraft-client/
-echo -e "${GREEN}[OK]${RESET} version.properties copied"
-echo ""
-
-# Create JAR file
-echo -e "${YELLOW}[4/5] Creating JAR archive...${RESET}"
-jar cvfm dist/TCraftClient.jar manifest.txt -C out/production/tcraft-client . > /dev/null 2>&1
 
 # Verify JAR was created
 if [ -f "dist/TCraftClient.jar" ]; then
@@ -87,7 +59,7 @@ fi
 echo ""
 
 # Create platform-specific launchers
-echo -e "${YELLOW}[5/5] Creating platform launchers...${RESET}"
+echo -e "${YELLOW}[2/3] Creating platform launchers...${RESET}"
 
 # macOS launcher (.command)
 cat > "dist/TCraft Client.command" << 'EOF'
@@ -144,7 +116,7 @@ Linux:    Run "./TCraft Client.sh" in terminal
 Any OS:   Run "java -jar TCraftClient.jar" in terminal
 
 ## Requirements
-- Java 16 or higher
+- Java 21 or higher
 
 Check version: java -version
 Download Java: https://adoptium.net/
@@ -159,7 +131,7 @@ echo ""
 
 # Create ZIP archive
 ZIP_NAME="${APP_NAME}-${APP_VERSION}.zip"
-echo -e "${BOLD}Creating distribution package...${RESET}"
+echo -e "${YELLOW}[3/3] Creating distribution package...${RESET}"
 
 # Remove old ZIP if exists
 rm -f "dist/$ZIP_NAME"
