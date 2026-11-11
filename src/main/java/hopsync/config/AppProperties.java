@@ -17,7 +17,7 @@ public class AppProperties {
     public static int getReadTimeout() { return getInt("network.read.timeout", 30000); }
     public static String getUserAgent() { return get("network.user.agent", "Mozilla/5.0"); }
     public static String getManifestUrl() {
-        return get("manifest.url", "https://raw.githubusercontent.com/JJGarciaMartinez/tcraft-mods-list/main/modList/mod-list.json");
+        return get("manifest.url", "https://github.com/JJGarciaMartinez/hopsync-demo/releases/download/hopsync/manifest.json");
     }
 
     // Theme - Backgrounds

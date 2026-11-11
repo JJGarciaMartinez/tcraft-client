@@ -1,18 +1,21 @@
 package hopsync.model;
 
 /**
- * Record that contains metadata information about a mod.
- * This data typically describes a mod's name, version, author, and related details.
- * It is intended for use in scenarios where detailed mod metadata is needed.
+ * What the UI shows for a mod, either from the manifest or from a jar found on disk.
  *
- * @param name        The name of the mod.
- * @param version     The version of the mod.
- * @param description A short description of the mod's functionality or purpose.
- * @param author      The author or creator of the mod.
- * @param url         A URL pointing to additional information, downloads, or documentation related to the mod.
- * @param configUrl   A URL pointing to the configuration file for the mod (optional, can be null).
- * @param configName  The name of the configuration file (optional, can be null).
+ * @param file        the jar file name; identifies the mod card across update events
+ * @param name        display name
+ * @param version     version label, may be empty
+ * @param description short description, may be empty
+ * @param author      author, may be empty
  */
-public record ModInfo(String name, String version, String description, String author, String url, String configUrl, String configName) {
-    // No additional methods or fields are necessary for this record.
+public record ModInfo(String file, String name, String version, String description, String author) {
+
+    public static ModInfo of(ModEntry entry) {
+        return new ModInfo(entry.file(), entry.name(), entry.version(), entry.description(), entry.author());
+    }
+
+    public static ModInfo installed(String file) {
+        return new ModInfo(file, file, "Instalado", "", "");
+    }
 }
