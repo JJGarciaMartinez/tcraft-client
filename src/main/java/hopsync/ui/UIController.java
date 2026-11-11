@@ -155,6 +155,7 @@ public class UIController {
      * Creates and displays the launcher UI with a new controller instance.
      */
     public static void create() {
+        Theme.install();
         LauncherUI ui = new LauncherUI();
         ui.setVisible(true);
         new UIController(ui);
