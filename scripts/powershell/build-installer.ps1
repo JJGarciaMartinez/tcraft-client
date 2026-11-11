@@ -42,7 +42,7 @@ if ($versionComponents.Count -gt 3) {
     exit 1
 }
 
-$MAIN_CLASS = "Main"
+$MAIN_CLASS = "hopsync.Main"
 $JAR_FILE = "dist\TCraftClient.jar"
 
 Write-Host "================================================================" -ForegroundColor Cyan
@@ -216,10 +216,10 @@ else {
 }
 
 # Add icon if it exists
-if (Test-Path "assets\icon.ico") {
+if (Test-Path "packaging\icon.ico") {
     $jpackageArgs += "--icon"
-    $jpackageArgs += "assets\icon.ico"
-    Write-Host "[OK] Using custom icon: assets\icon.ico" -ForegroundColor Green
+    $jpackageArgs += "packaging\icon.ico"
+    Write-Host "[OK] Using custom icon: packaging\icon.ico" -ForegroundColor Green
 }
 else {
     Write-Host "[WARN] icon.ico not found, building without custom icon" -ForegroundColor Yellow

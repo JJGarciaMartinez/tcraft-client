@@ -66,6 +66,6 @@ echo -e "  • ${BLUE}AppConfig.java${RESET}        Runtime display: ${CYAN}${NE
 echo -e "  • ${BLUE}build-installer.sh${RESET}    Installer version: ${CYAN}${NEW_VERSION_NUMERIC}${RESET}"
 echo ""
 echo -e "${BOLD}Next steps:${RESET}"
-echo -e "  ${BLUE}./scripts/bash/compile-sources.sh && ./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh${RESET}"
+echo -e "  ${BLUE}./scripts/bash/build-jar.sh && ./scripts/bash/build-installer.sh${RESET}"
 
 
