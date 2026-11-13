@@ -1,5 +1,6 @@
 package hopsync.desktop.screens;
 
+import com.formdev.flatlaf.util.UIScale;
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.desktop.kit.HopSyncDark;
@@ -15,6 +16,10 @@ import org.junit.jupiter.api.Test;
 
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
+import javax.swing.JProgressBar;
+import javax.swing.SwingUtilities;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.time.ZoneOffset;
@@ -86,6 +91,63 @@ class ScreensTest {
             }
         }
         assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
+    }
+
+    @Test
+    void progressBarKeepsItsWidthWhateverFileIsDownloading() throws Exception {
+        UiState applying = reduce(loaded(), new UiAction.ManifestLoaded(D, manifest()), new SyncEvent.UpdateStarted(D),
+            new SyncEvent.PlanReady(D, plan()), new SyncEvent.ApplyStarted(D), new SyncEvent.ProgressChanged(D, 40));
+        PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
+
+        int shortName = barWidth(hero, reduce(applying, new SyncEvent.ModDownloading(D, "a.jar")));
+        int longName = barWidth(hero, reduce(applying, new SyncEvent.ModDownloading(D,
+            "create-connected-and-all-its-addons-mc1.21.1-neoforge-1.1.10-super-long-file-name.jar")));
+
+        assertTrue(shortName > 0);
+        assertEquals(shortName, longName);
+    }
+
+    /**
+     * Lays the hero out as a shown window would. Without a window Swing never marks components valid, so
+     * {@code revalidate()} stops early and layouts keep their cached sizes; invalidating the tree by hand
+     * clears them, as the window does.
+     */
+    private static int barWidth(PackHero hero, UiState state) throws Exception {
+        int[] width = new int[1];
+        SwingUtilities.invokeAndWait(() -> {
+            hero.render(state.selected().orElseThrow(), state);
+            // The width the hero has in a 960 px window
+            hero.setSize(UIScale.scale(746), UIScale.scale(134));
+            invalidateTree(hero);
+            layoutTree(hero);
+            width[0] = find(hero, JProgressBar.class).getWidth();
+        });
+        return width[0];
+    }
+
+    private static void invalidateTree(Container container) {
+        container.invalidate();
+        for (Component child : container.getComponents()) {
+            if (child instanceof Container inner) invalidateTree(inner);
+        }
+    }
+
+    private static void layoutTree(Container container) {
+        container.doLayout();
+        for (Component child : container.getComponents()) {
+            if (child instanceof Container inner) layoutTree(inner);
+        }
+    }
+
+    private static <T extends Component> T find(Container container, Class<T> type) {
+        for (Component child : container.getComponents()) {
+            if (type.isInstance(child)) return type.cast(child);
+            if (child instanceof Container inner) {
+                T found = find(inner, type);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     @Test
