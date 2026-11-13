@@ -3,14 +3,14 @@ package hopsync.core.session;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Thread-safe phase of the update process.
+ * Thread-safe phase of one pack's update process.
  */
 public class UpdateState {
     public enum Phase {
-        IDLE, PLANNING, AWAITING_CONFIRMATION, APPLYING, COMPLETED, FAILED, CANCELLED;
+        IDLE, PLANNING, AWAITING_CONFIRMATION, QUEUED, APPLYING, COMPLETED, FAILED, CANCELLED;
 
         public boolean isActive() {
-            return this == PLANNING || this == AWAITING_CONFIRMATION || this == APPLYING;
+            return this == PLANNING || this == AWAITING_CONFIRMATION || this == QUEUED || this == APPLYING;
         }
     }
 

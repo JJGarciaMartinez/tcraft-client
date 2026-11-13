@@ -5,9 +5,9 @@ import hopsync.core.manifest.Manifest;
 import java.io.IOException;
 
 /**
- * Supplies the manifest of the pack being synced.
+ * Supplies the manifest published at a pack's link.
  */
 @FunctionalInterface
 public interface ManifestSource {
-    Manifest fetchManifest() throws IOException;
+    Manifest fetchManifest(String url) throws IOException;
 }

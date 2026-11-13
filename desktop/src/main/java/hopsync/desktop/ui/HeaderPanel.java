@@ -6,13 +6,13 @@ import hopsync.desktop.config.AssetPaths;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.util.FontLoader;
 import hopsync.desktop.util.ImageLoader;
-import hopsync.platform.fs.FileSystemService;
 import hopsync.platform.system.SystemInfoService;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.io.File;
+import java.nio.file.Path;
 
 /**
  * The HeaderPanel class is a custom JPanel implementation used as the
@@ -35,11 +35,9 @@ public final class HeaderPanel extends JPanel {
      * system info, and statistics. This panel is styled with a Minecraft-inspired
      * theme and provides display areas for basic status and configuration details.
      *
-     * @param fileSystemService A service instance that provides access to file system
-     *                          operations, such as locating the mods folder and retrieving
-     *                          information about installed mods.
+     * @param gameDir the active pack's game folder, or {@code null} before the first pack is added
      */
-    public HeaderPanel(FileSystemService fileSystemService) {
+    public HeaderPanel(Path gameDir) {
         Font smallMinecraftFont = FontLoader.getMinecraftFont(11f);
         Font normalMinecraftFont = FontLoader.getMinecraftFont(14f);
         Font bigMinecraftFont = FontLoader.getMinecraftFont(20f);
@@ -102,7 +100,7 @@ public final class HeaderPanel extends JPanel {
         javaVersionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add mods' path label
-        String gamePath = fileSystemService.getGameDir().getAbsolutePath();
+        String gamePath = gameDir == null ? "—" : gameDir.toAbsolutePath().toString();
         modPathLabel = new JLabel("Ruta: " + gamePath);
         modPathLabel.setToolTipText(gamePath);
         modPathLabel.setFont(normalMinecraftFont);

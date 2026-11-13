@@ -1,5 +1,8 @@
 package hopsync.platform.settings;
 
+import hopsync.core.pack.Pack;
+import hopsync.core.pack.PackSettings;
+import hopsync.core.port.PackSettingsRepository;
 import hopsync.core.util.AtomicFiles;
 import hopsync.core.util.Json;
 
@@ -9,17 +12,22 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Persists {@link UserSettings} as JSON in the operating system's per-user configuration folder.
+ * Persists the player's packs and preferences as JSON in the operating system's per-user configuration
+ * folder. Format 1 (a single pack) is migrated to format 2 on load, keeping a backup of the old file.
  */
-public class SettingsStore {
+public class SettingsStore implements PackSettingsRepository {
     private static final System.Logger LOG = System.getLogger(SettingsStore.class.getName());
-    private static final int FORMAT = 1;
+    private static final long FORMAT = 2;
+    private static final long FORMAT_SINGLE_PACK = 1;
 
     private final Path file;
 
@@ -65,35 +73,109 @@ public class SettingsStore {
         return file;
     }
 
-    /**
-     * Returns the saved settings, or empty if there are none yet or they cannot be read.
-     */
-    public Optional<UserSettings> load() {
+    /** Copy of the format 1 file, written before the first save in format 2. */
+    Path backupFile() {
+        return file.resolveSibling(file.getFileName() + ".v1.bak");
+    }
+
+    @Override
+    public PackSettings load() {
         try {
             Map<?, ?> root = (Map<?, ?>) Json.parse(Files.readString(file, StandardCharsets.UTF_8));
-            if (!Long.valueOf(FORMAT).equals(root.get("format"))) {
-                return Optional.empty();
+            Object format = root.get("format");
+            if (Long.valueOf(FORMAT).equals(format)) {
+                return readPacks(root);
             }
-            String url = (String) root.get("manifest_url");
-            String gameDir = (String) root.get("game_dir");
-            if (url == null || url.isBlank() || gameDir == null || gameDir.isBlank()) {
-                return Optional.empty();
+            if (Long.valueOf(FORMAT_SINGLE_PACK).equals(format)) {
+                return migrateSinglePack(root);
             }
-            return Optional.of(new UserSettings(url, Path.of(gameDir)));
+            LOG.log(System.Logger.Level.WARNING, "Ignoring settings in unknown format " + format + ": " + file);
+            return PackSettings.EMPTY;
         } catch (NoSuchFileException e) {
-            return Optional.empty();
+            return PackSettings.EMPTY;
         } catch (IOException | ClassCastException | InvalidPathException e) {
             LOG.log(System.Logger.Level.WARNING, "Ignoring unreadable settings " + file, e);
-            return Optional.empty();
+            return PackSettings.EMPTY;
         }
     }
 
-    public void save(UserSettings settings) throws IOException {
+    @Override
+    public void save(PackSettings settings) throws IOException {
+        backUpSinglePackFormat();
+        List<Object> packs = new ArrayList<>();
+        for (Pack pack : settings.packs()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", pack.id());
+            entry.put("manifest_url", pack.manifestUrl());
+            entry.put("game_dir", pack.gameDir().toString());
+            entry.put("name", pack.name());
+            packs.add(entry);
+        }
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("format", FORMAT);
-        root.put("manifest_url", settings.manifestUrl());
-        root.put("game_dir", settings.gameDir().toAbsolutePath().toString());
+        root.put("active", settings.activeId());
+        root.put("packs", packs);
+        root.put("check_on_start", settings.checkOnStart());
+        root.put("chain_queue", settings.chainQueue());
+        root.put("parallel_downloads", settings.parallelDownloads());
 
         AtomicFiles.writeString(file, Json.write(root));
+    }
+
+    private PackSettings readPacks(Map<?, ?> root) {
+        List<Pack> packs = new ArrayList<>();
+        if (root.get("packs") instanceof List<?> entries) {
+            for (Object entry : entries) {
+                if (entry instanceof Map<?, ?> map && map.get("id") instanceof String id && !id.isBlank()
+                        && map.get("manifest_url") instanceof String url && !url.isBlank()
+                        && map.get("game_dir") instanceof String dir && !dir.isBlank()) {
+                    packs.add(new Pack(id, url, Path.of(dir), map.get("name") instanceof String name ? name : ""));
+                } else {
+                    LOG.log(System.Logger.Level.WARNING, "Skipping incomplete pack in " + file + ": " + entry);
+                }
+            }
+        }
+        PackSettings defaults = PackSettings.EMPTY;
+        return new PackSettings(packs,
+            root.get("active") instanceof String active ? active : null,
+            root.get("check_on_start") instanceof Boolean check ? check : defaults.checkOnStart(),
+            root.get("chain_queue") instanceof Boolean chain ? chain : defaults.chainQueue(),
+            root.get("parallel_downloads") instanceof Long parallel ? parallel.intValue() : defaults.parallelDownloads());
+    }
+
+    /**
+     * Turns the single pack of format 1 into the first pack of format 2 and saves it right away, so the
+     * pack keeps the same id from now on.
+     */
+    private PackSettings migrateSinglePack(Map<?, ?> root) {
+        String url = (String) root.get("manifest_url");
+        String gameDir = (String) root.get("game_dir");
+        if (url == null || url.isBlank() || gameDir == null || gameDir.isBlank()) {
+            return PackSettings.EMPTY;
+        }
+        Pack pack = new Pack(UUID.randomUUID().toString(), url, Path.of(gameDir), "");
+        PackSettings migrated = PackSettings.EMPTY.withPacks(List.of(pack), pack.id());
+        try {
+            save(migrated);
+            LOG.log(System.Logger.Level.INFO, "Migrated settings to format 2; the old file is in " + backupFile());
+        } catch (IOException e) {
+            LOG.log(System.Logger.Level.WARNING, "Could not save the migrated settings " + file, e);
+        }
+        return migrated;
+    }
+
+    private void backUpSinglePackFormat() throws IOException {
+        if (Files.exists(backupFile()) || !Files.exists(file)) {
+            return;
+        }
+        try {
+            Map<?, ?> root = (Map<?, ?>) Json.parse(Files.readString(file, StandardCharsets.UTF_8));
+            if (!Long.valueOf(FORMAT_SINGLE_PACK).equals(root.get("format"))) {
+                return;
+            }
+        } catch (IOException | ClassCastException e) {
+            return;
+        }
+        Files.copy(file, backupFile(), StandardCopyOption.COPY_ATTRIBUTES);
     }
 }

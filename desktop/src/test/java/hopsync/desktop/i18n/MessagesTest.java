@@ -28,6 +28,7 @@ class MessagesTest {
         new SyncFailure.UnsafePath("../evil.jar"),
         new SyncFailure.FolderUnavailable("/game/mods"),
         new SyncFailure.FolderInUse("/game"),
+        new SyncFailure.FolderUsedByPack("/game", "Demo"),
         new SyncFailure.DiskFull("create.jar"),
         new SyncFailure.FileLocked("create.jar"),
         new SyncFailure.PermissionDenied("/game/mods"),

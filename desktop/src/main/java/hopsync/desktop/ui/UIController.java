@@ -1,20 +1,25 @@
 package hopsync.desktop.ui;
 
 import hopsync.core.event.EventBus;
-import hopsync.core.event.UpdateEvent;
+import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailures;
+import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.PackInfo;
-import hopsync.core.session.UpdateCoordinator;
+import hopsync.core.pack.Pack;
+import hopsync.core.pack.PackRegistry;
+import hopsync.core.session.PackSession;
+import hopsync.core.session.PackSessions;
 import hopsync.desktop.AppContainer;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.kit.Palette;
-import hopsync.platform.fs.FileSystemService;
+import hopsync.platform.fs.DefaultGameDir;
 import hopsync.platform.manifest.ManifestService;
-import hopsync.platform.settings.SettingsService;
 
 import javax.swing.*;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.concurrent.ExecutionException;
 
@@ -22,18 +27,21 @@ import java.util.concurrent.ExecutionException;
  * The UIController is responsible for managing the interactions between the user interface (UI)
  * components and the underlying services. It uses the event-based architecture for decoupled
  * communication between layers.
+ * <p>
+ * Until the pack library exists the window shows only the active pack: its session drives the buttons
+ * and events from other packs are ignored.
  */
 public class UIController {
     private static final System.Logger LOG = System.getLogger(UIController.class.getName());
 
     private final LauncherUI ui;
+    private final AppContainer container;
     private final EventBus eventBus;
-    private final UpdateCoordinator coordinator;
+    private final PackRegistry registry;
+    private final PackSessions sessions;
     private final UpdateEventHandler eventHandler;
-    private final ModLoadService modLoadService;
-    private final SettingsService settingsService;
+    private final ModLoadService modLoadService = new ModLoadService();
     private final ManifestService manifestService;
-    private final FileSystemService fileSystemService;
 
     /**
      * Constructs a new instance of the UIController class, which serves as the controller
@@ -44,21 +52,24 @@ public class UIController {
      */
     public UIController(LauncherUI ui, AppContainer container) {
         this.ui = ui;
+        this.container = container;
         this.eventBus = container.eventBus();
-        this.coordinator = container.updateCoordinator();
+        this.registry = container.packRegistry();
+        this.sessions = container.packSessions();
         this.eventHandler = new UpdateEventHandler(ui);
-        this.fileSystemService = container.fileSystemService();
-        this.modLoadService = new ModLoadService(fileSystemService);
-        this.settingsService = container.settingsService();
         this.manifestService = container.manifestService();
 
-        eventBus.subscribe(eventHandler::handleEvent);
-        eventBus.subscribe(this::askForConfirmation);
-        eventBus.subscribe(this::refreshModCountWhenDone);
+        eventBus.subscribe(event -> {
+            if (isActivePack(event)) {
+                eventHandler.handleEvent(event);
+                askForConfirmation(event);
+                refreshModCountWhenDone(event);
+            }
+        });
         setupListeners();
         SwingUtilities.invokeLater(() -> {
             loadCurrentMods();
-            if (settingsService.isConfigured() || !openSettings(true)) {
+            if (!registry.isEmpty() || !openSettings(true)) {
                 loadPackInfo();
             }
         });
@@ -68,7 +79,8 @@ public class UIController {
      * Configures the action listeners for the control panel buttons in the user interface.
      */
     private void setupListeners() {
-        ui.getControlPanel().setUpdateButtonListener(e -> coordinator.startUpdate());
+        ui.getControlPanel().setUpdateButtonListener(e ->
+            activeSession().ifPresentOrElse(PackSession::startUpdate, () -> openSettings(true)));
         ui.getControlPanel().setCancelButtonListener(e -> cancelUpdate());
         ui.getControlPanel().setRefreshButtonListener(e -> loadCurrentMods());
         ui.getControlPanel().setSettingsButtonListener(e -> openSettings(false));
@@ -80,11 +92,11 @@ public class UIController {
      * @return true if new settings were saved
      */
     private boolean openSettings(boolean firstRun) {
-        if (coordinator.isRunning()) return false;
-        boolean saved = SettingsDialog.show(ui, settingsService, manifestService,
-            FileSystemService.detectDefaultGameDir(), firstRun);
+        if (isRunning()) return false;
+        boolean saved = SettingsDialog.show(ui, registry, manifestService, container.presetManifestUrl(),
+            container.settingsFile(), DefaultGameDir.detect(), firstRun);
         if (saved) {
-            ui.getHeaderPanel().setGameDir(fileSystemService.getGameDir());
+            activePack().ifPresent(pack -> ui.getHeaderPanel().setGameDir(pack.gameDir().toFile()));
             loadCurrentMods();
             loadPackInfo();
         }
@@ -95,10 +107,13 @@ public class UIController {
      * Fetches the manifest in the background to show the pack in the header.
      */
     private void loadPackInfo() {
+        Optional<Pack> pack = activePack();
         new SwingWorker<PackInfo, Void>() {
             @Override
             protected PackInfo doInBackground() throws Exception {
-                return manifestService.fetchManifest().pack();
+                Manifest manifest = manifestService.fetchManifest(pack.map(Pack::manifestUrl).orElse(""));
+                pack.ifPresent(p -> registry.rememberName(p.id(), manifest.pack().name()));
+                return manifest.pack();
             }
 
             @Override
@@ -117,22 +132,23 @@ public class UIController {
     /**
      * Shows the plan to the player once it is ready; nothing is written until they accept it.
      */
-    private void askForConfirmation(UpdateEvent event) {
-        if (event instanceof UpdateEvent.PlanReady ready) {
+    private void askForConfirmation(SyncEvent event) {
+        if (event instanceof SyncEvent.PlanReady ready) {
             SwingUtilities.invokeLater(() -> {
+                PackSession session = sessions.get(ready.packId());
                 if (SyncPlanDialog.confirm(ui, ready.plan())) {
-                    coordinator.confirmPlan();
+                    session.confirmPlan();
                 } else {
-                    cancelUpdate();
+                    session.cancelUpdate();
                 }
             });
         }
     }
 
-    private void refreshModCountWhenDone(UpdateEvent event) {
-        if (event instanceof UpdateEvent.UpdateCompleted) {
+    private void refreshModCountWhenDone(SyncEvent event) {
+        if (event instanceof SyncEvent.UpdateCompleted) {
             SwingUtilities.invokeLater(() -> withInstalledMods(mods -> showModCount(mods.size())));
-        } else if (event instanceof UpdateEvent.UpdateCancelled || event instanceof UpdateEvent.UpdateFailed) {
+        } else if (event instanceof SyncEvent.UpdateCancelled || event instanceof SyncEvent.UpdateFailed) {
             // Back to what is on disk once the worker has actually stopped
             SwingUtilities.invokeLater(this::loadCurrentMods);
         }
@@ -146,7 +162,7 @@ public class UIController {
      * Cancels the ongoing update; the mods list is reloaded when UpdateCancelled arrives.
      */
     private void cancelUpdate() {
-        coordinator.cancelUpdate();
+        activeSession().ifPresent(PackSession::cancelUpdate);
     }
 
     /**
@@ -155,7 +171,7 @@ public class UIController {
     private void loadCurrentMods() {
         withInstalledMods(mods -> {
             // An update that started meanwhile owns the list
-            if (coordinator.isRunning()) return;
+            if (isRunning()) return;
             ui.getModListPanel().clear();
             if (mods.isEmpty()) {
                 ui.getModListPanel().showEmpty();
@@ -172,10 +188,11 @@ public class UIController {
      * Lists the jars in the mods folder off the EDT, then hands them to {@code onLoaded} on the EDT.
      */
     private void withInstalledMods(Consumer<List<ModInfo>> onLoaded) {
+        Optional<Path> modsFolder = activePack().map(pack -> pack.paths().mods());
         new SwingWorker<List<ModInfo>, Void>() {
             @Override
             protected List<ModInfo> doInBackground() {
-                return modLoadService.loadCurrentMods();
+                return modsFolder.map(modLoadService::loadCurrentMods).orElse(List.of());
             }
 
             @Override
@@ -191,12 +208,28 @@ public class UIController {
         }.execute();
     }
 
+    private Optional<Pack> activePack() {
+        return registry.active();
+    }
+
+    private Optional<PackSession> activeSession() {
+        return activePack().map(pack -> sessions.get(pack.id()));
+    }
+
+    private boolean isActivePack(SyncEvent event) {
+        return activePack().map(pack -> pack.id().equals(event.packId())).orElse(false);
+    }
+
+    private boolean isRunning() {
+        return activeSession().map(PackSession::isRunning).orElse(false);
+    }
+
     /**
      * Creates and displays the launcher UI with a new controller instance.
      */
     public static void create(AppContainer container) {
         HopSyncDark.setup();
-        LauncherUI ui = new LauncherUI(container.fileSystemService());
+        LauncherUI ui = new LauncherUI(container.packRegistry().active().map(Pack::gameDir).orElse(null));
         ui.setVisible(true);
         new UIController(ui, container);
     }
