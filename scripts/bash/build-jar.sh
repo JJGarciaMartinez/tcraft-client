@@ -45,7 +45,7 @@ echo ""
 echo -e "${YELLOW}[1/3] Building JAR with Gradle...${RESET}"
 ./gradlew --quiet build
 mkdir -p dist
-cp "build/libs/${APP_NAME}.jar" "dist/TCraftClient.jar"
+cp "desktop/build/libs/${APP_NAME}.jar" "dist/TCraftClient.jar"
 echo ""
 
 # Verify JAR was created

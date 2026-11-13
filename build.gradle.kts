@@ -1,51 +1,32 @@
-import java.util.Properties
+// Conventions shared by every module: core (domain), platform (adapters), desktop (Swing app)
+subprojects {
+    apply(plugin = "java")
 
-plugins {
-    application
-}
-
-// version.properties is the single source of truth for name and version (see VERSION_GUIDE.md)
-val versionProps = Properties().apply { rootProject.file("version.properties").inputStream().use(::load) }
-val appName: String = versionProps.getProperty("app.name")
-
-version = versionProps.getProperty("app.version")
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation("com.formdev:flatlaf:3.7.2")
-    testImplementation(platform("org.junit:junit-bom:6.1.3"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+    repositories {
+        mavenCentral()
     }
-}
 
-application {
-    mainClass = "hopsync.Main"
-}
-
-tasks.processResources {
-    from(rootProject.file("version.properties"))
-}
-
-tasks.jar {
-    archiveFileName = "$appName.jar"
-    manifest {
-        attributes("Main-Class" to application.mainClass)
+    extensions.configure<JavaPluginExtension> {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
     }
-    // Self-contained JAR: java -jar and jpackage only ship this file
-    from(configurations.runtimeClasspath.map { files -> files.map { if (it.isDirectory) it else zipTree(it) } })
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    exclude("module-info.class", "META-INF/versions/*/module-info.class", "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
-}
 
-tasks.test {
-    useJUnitPlatform()
+    dependencies {
+        "testImplementation"(platform("org.junit:junit-bom:6.1.3"))
+        "testImplementation"("org.junit.jupiter:junit-jupiter")
+        "testImplementation"("com.tngtech.archunit:archunit-junit5:1.4.1")
+        "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
+    }
+
+    tasks.withType<JavaCompile>().configureEach {
+        options.encoding = "UTF-8"
+        options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
+    }
+
+    tasks.withType<Test>().configureEach {
+        useJUnitPlatform()
+        // Lets "./gradlew test --tests <pattern>" run from the root without failing in the other modules
+        filter.isFailOnNoMatchingTests = false
+    }
 }

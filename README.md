@@ -16,22 +16,18 @@ A desktop application for managing and updating Minecraft mods for the TCraft mo
 
 ## Project Structure
 
-The application follows a modular architecture organized into logical packages:
+The application is split into three Gradle modules. Dependencies only point inward
+(`desktop → platform → core`), and ArchUnit tests keep it that way:
 
 ```
-src/main/java/hopsync/
-├── Main.java          # Application entry point
-├── config/            # App configuration (version, app.properties, asset paths)
-├── event/             # EventBus and the sealed UpdateEvent hierarchy
-├── model/             # Data models (ModInfo)
-├── service/           # Business logic: manifest, downloads, cleanup, update coordination
-├── state/             # Thread-safe update state
-├── ui/                # Swing components and the event handler that updates them
-└── util/              # Font/image loading, JSON parsing
-src/main/resources/    # assets/ (images, font) and app.properties
-src/test/java/         # JUnit 5 tests
-packaging/             # Installer icons used by jpackage
+core/        # Domain: manifest model and parser, sync engine, update coordinator, ports (no Swing, no HTTP)
+platform/    # Adapters: HTTP downloads, manifest fetching, player settings, game folder detection
+desktop/     # Swing app: UI, configuration, composition root (AppContainer), Main and the distributable JAR
+  src/main/resources/   # assets/ (images, font) and app.properties
+packaging/   # Installer icons used by jpackage
 ```
+
+Each module has its own `src/main/java` and `src/test/java` (JUnit 5).
 
 ## How It Works
 
@@ -60,7 +56,7 @@ The application uses a **Model-Service-UI** architecture:
 The project uses Gradle (wrapper included) and Java 21.
 
 ```bash
-./gradlew build   # compile, run tests and build build/libs/TCraftClient.jar
+./gradlew build   # compile, run tests and build desktop/build/libs/TCraftClient.jar
 ./gradlew test    # run tests only
 ./gradlew run     # launch the app
 ```

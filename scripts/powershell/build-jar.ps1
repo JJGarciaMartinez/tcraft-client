@@ -37,7 +37,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 New-Item -ItemType Directory -Path $DIST_DIR -Force | Out-Null
-Copy-Item -Path "build\libs\$APP_NAME.jar" -Destination $JAR_FILE -Force
+Copy-Item -Path "desktop\build\libs\$APP_NAME.jar" -Destination $JAR_FILE -Force
 Write-Host ""
 
 # Verify JAR was created
