@@ -16,7 +16,7 @@ class DesktopArchitectureTest {
     @ArchTest
     static final ArchRule uiDoesNotRunUseCasesDirectly = noClasses().that().resideInAPackage("hopsync.desktop.ui..")
         .should().dependOnClassesThat().resideInAnyPackage("hopsync.core.usecase..")
-        .because("the UI starts, confirms and cancels updates through UpdateCoordinator");
+        .because("the UI starts, confirms and cancels updates through PackSession");
 
     @ArchTest
     static final ArchRule onlyTheContainerBuildsAdapters = noClasses().that().resideOutsideOfPackage("hopsync.desktop")

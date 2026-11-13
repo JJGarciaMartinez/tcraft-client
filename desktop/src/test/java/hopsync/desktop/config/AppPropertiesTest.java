@@ -21,14 +21,6 @@ class AppPropertiesTest {
     }
 
     @Test
-    void themeColorsAreValidHex() throws IOException {
-        Properties props = loadAppProperties();
-        props.stringPropertyNames().stream()
-            .filter(key -> key.startsWith("theme."))
-            .forEach(key -> assertDoesNotThrow(() -> Integer.parseInt(props.getProperty(key), 16), key));
-    }
-
-    @Test
     void networkTimeoutsAreIntegers() throws IOException {
         Properties props = loadAppProperties();
         props.stringPropertyNames().stream()

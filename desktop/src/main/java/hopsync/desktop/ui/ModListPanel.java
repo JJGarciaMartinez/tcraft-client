@@ -1,6 +1,6 @@
 package hopsync.desktop.ui;
 
-import hopsync.desktop.config.AppProperties;
+import hopsync.desktop.kit.Palette;
 import hopsync.desktop.ui.ModInfo;
 import hopsync.desktop.util.FontLoader;
 
@@ -42,7 +42,7 @@ public final class ModListPanel extends JPanel {
     public ModListPanel() {
         // Set up panel layout and styles
         setLayout(new BorderLayout());
-        setBackground(AppProperties.getBackgroundDark());
+        setBackground(Palette.background());
 
         // Create a HashMap to store ModCards by name
         modCards = new HashMap<>();
@@ -50,13 +50,13 @@ public final class ModListPanel extends JPanel {
         // Container for mod cards
         modsContainer = new JPanel();
         modsContainer.setLayout(new BoxLayout(modsContainer, BoxLayout.Y_AXIS));
-        modsContainer.setBackground(AppProperties.getBackgroundDark());
+        modsContainer.setBackground(Palette.background());
         modsContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // Label for when there are no mods installed
         emptyLabel = new JLabel("No hay mods instalados");
         emptyLabel.setFont(FontLoader.getMinecraftFont(20f));
-        emptyLabel.setForeground(AppProperties.getTextTertiary());
+        emptyLabel.setForeground(Palette.textFaint());
         emptyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         emptyLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
@@ -66,7 +66,7 @@ public final class ModListPanel extends JPanel {
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
         // Long descriptions are clipped instead of widening every card
         scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        scrollPane.setBackground(AppProperties.getBackgroundDark());
+        scrollPane.setBackground(Palette.background());
 
         // Add a scroll pane to the main panel
         add(scrollPane, BorderLayout.CENTER);
@@ -140,7 +140,7 @@ public final class ModListPanel extends JPanel {
                 // If there are mods, create ModCards for each
                 for (String modName : modNames) {
                     ModCard card = new ModCard(modName);
-                    card.setStatus(StatusType.IN_SYSTEM,"Instalado", AppProperties.getAccentSuccess());
+                    card.setStatus(StatusType.IN_SYSTEM,"Instalado", Palette.accent());
                     modCards.put(modName, card);
                     modsContainer.add(card);
                     modsContainer.add(Box.createVerticalStrut(10));

@@ -1,11 +1,11 @@
 package hopsync.desktop.ui;
 
-import hopsync.desktop.config.AppProperties;
-import hopsync.desktop.i18n.Messages;
-import hopsync.core.event.UpdateEvent;
-import hopsync.desktop.ui.ModInfo;
+import hopsync.core.event.SyncEvent;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.sync.SyncPlan;
+import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.Palette;
+import hopsync.desktop.ui.ModInfo;
 
 import javax.swing.SwingUtilities;
 
@@ -20,24 +20,24 @@ public class UpdateEventHandler {
         this.ui = ui;
     }
 
-    public void handleEvent(UpdateEvent event) {
+    public void handleEvent(SyncEvent event) {
         SwingUtilities.invokeLater(() -> dispatchEvent(event));
     }
 
-    private void dispatchEvent(UpdateEvent event) {
+    private void dispatchEvent(SyncEvent event) {
         switch (event) {
-            case UpdateEvent.UpdateStarted e -> {
+            case SyncEvent.UpdateStarted e -> {
                 ui.getModListPanel().clear();
                 ui.getControlPanel().setUpdateInProgress(true);
                 ui.getHeaderPanel().setStatusProcessing();
                 ui.getControlPanel().updateStatus(Messages.get("status.checking"));
             }
-            case UpdateEvent.PlanReady e -> {
+            case SyncEvent.PlanReady e -> {
                 showPlan(e.plan());
                 ui.getHeaderPanel().showPack(e.plan().manifest().pack());
                 ui.getControlPanel().updateStatus(Messages.get("status.review"));
             }
-            case UpdateEvent.UpToDate e -> {
+            case SyncEvent.UpToDate e -> {
                 showPlan(e.plan());
                 ui.getHeaderPanel().showPack(e.plan().manifest().pack());
                 ui.getControlPanel().setUpdateInProgress(false);
@@ -45,12 +45,13 @@ public class UpdateEventHandler {
                 PackInfo pack = e.plan().manifest().pack();
                 ui.getControlPanel().updateStatus(Messages.get("status.upToDate", pack.name(), pack.version()));
             }
-            case UpdateEvent.ApplyStarted e -> {
+            case SyncEvent.Queued e -> ui.getControlPanel().updateStatus(Messages.get("status.queued"));
+            case SyncEvent.ApplyStarted e -> {
                 ui.getControlPanel().updateProgress(0);
                 ui.getControlPanel().showProgress();
                 ui.getControlPanel().updateStatus(Messages.get("status.applying"));
             }
-            case UpdateEvent.UpdateCompleted e -> {
+            case SyncEvent.UpdateCompleted e -> {
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getControlPanel().hideProgress();
                 if (e.failCount() > 0) {
@@ -61,32 +62,32 @@ public class UpdateEventHandler {
                     ui.getControlPanel().updateStatus(Messages.get("status.completed"));
                 }
             }
-            case UpdateEvent.UpdateCancelled e -> {
+            case SyncEvent.UpdateCancelled e -> {
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getControlPanel().hideProgress();
                 ui.getHeaderPanel().setStatusWarning();
                 ui.getControlPanel().updateStatus(Messages.get("status.cancelled"));
             }
-            case UpdateEvent.UpdateFailed e -> {
+            case SyncEvent.UpdateFailed e -> {
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getControlPanel().hideProgress();
                 ui.getHeaderPanel().setStatusError();
                 ui.getControlPanel().updateStatus(Messages.failure(e.failure()));
             }
-            case UpdateEvent.ProgressChanged e -> ui.getControlPanel().updateProgress(e.percent());
-            case UpdateEvent.ModDownloading e -> ui.getModListPanel().setModDownloading(e.file());
-            case UpdateEvent.ModCompleted e -> {
+            case SyncEvent.ProgressChanged e -> ui.getControlPanel().updateProgress(e.percent());
+            case SyncEvent.ModDownloading e -> ui.getModListPanel().setModDownloading(e.file());
+            case SyncEvent.ModCompleted e -> {
                 if (e.failure() == null) {
                     ui.getModListPanel().setModCompleted(e.file(), e.success());
                 } else {
                     ui.getModListPanel().setModStatus(e.file(), StatusType.ERROR, Messages.failure(e.failure()),
-                        AppProperties.getAccentError());
+                        Palette.error());
                 }
             }
-            case UpdateEvent.ModRemoved e -> ui.getModListPanel().setModStatus(e.file(), StatusType.WARNING,
-                Messages.get("mod.removed"), AppProperties.getAccentWarning());
+            case SyncEvent.ModRemoved e -> ui.getModListPanel().setModStatus(e.file(), StatusType.WARNING,
+                Messages.get("mod.removed"), Palette.update());
             // Can be shown in a log panel if needed
-            case UpdateEvent.LogMessage e -> { }
+            case SyncEvent.LogMessage e -> { }
         }
     }
 
@@ -98,14 +99,14 @@ public class UpdateEventHandler {
             String file = action.mod().file();
             switch (action.change()) {
                 case UP_TO_DATE -> list.setModAlreadyInstalled(file);
-                case NEW -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.new"), AppProperties.getAccentInfo());
+                case NEW -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.new"), Palette.added());
                 case UPDATE -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.willUpdate"),
-                    AppProperties.getAccentWarningLight());
+                    Palette.update());
             }
         }
         for (String file : plan.removals()) {
             list.addModSync(ModInfo.installed(file));
-            list.setModStatus(file, StatusType.WARNING, Messages.get("mod.willRemove"), AppProperties.getAccentWarning());
+            list.setModStatus(file, StatusType.WARNING, Messages.get("mod.willRemove"), Palette.update());
         }
     }
 }

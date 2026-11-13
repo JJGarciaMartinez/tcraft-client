@@ -39,6 +39,7 @@ public final class Messages {
             case SyncFailure.UnsafePath f -> get("failure.unsafePath", f.path());
             case SyncFailure.FolderUnavailable f -> get("failure.folderUnavailable", f.path());
             case SyncFailure.FolderInUse f -> get("failure.folderInUse");
+            case SyncFailure.FolderUsedByPack f -> get("failure.folderUsedByPack", f.packName());
             case SyncFailure.DiskFull f -> get("failure.diskFull", f.path());
             case SyncFailure.FileLocked f -> get("failure.fileLocked", f.path());
             case SyncFailure.PermissionDenied f -> get("failure.permissionDenied", f.path());

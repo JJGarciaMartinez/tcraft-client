@@ -1,24 +1,18 @@
 package hopsync.desktop.ui;
 
-import hopsync.platform.fs.FileSystemService;
-
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Lists the jars currently in the mods folder.
+ * Lists the jars currently in a mods folder.
  */
 public class ModLoadService {
-    private final FileSystemService fileSystemService;
 
-    public ModLoadService(FileSystemService fileSystemService) {
-        this.fileSystemService = fileSystemService;
-    }
-
-    public List<ModInfo> loadCurrentMods() {
+    public List<ModInfo> loadCurrentMods(Path modsPath) {
         List<ModInfo> mods = new ArrayList<>();
-        File modsFolder = fileSystemService.getModsFolder();
+        File modsFolder = modsPath.toFile();
 
         if (!modsFolder.exists() || !modsFolder.isDirectory()) {
             return mods;

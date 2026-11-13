@@ -1,6 +1,5 @@
 package hopsync.desktop.config;
 
-import java.awt.Color;
 import java.io.InputStream;
 import java.util.Properties;
 
@@ -14,26 +13,6 @@ public class AppProperties {
     private static final Properties props = new Properties();
     private static boolean loaded = false;
 
-    // Theme - Backgrounds
-    public static Color getBackgroundDarker() { return getColor("theme.bg.darker", 0x1E1E1E); }
-    public static Color getBackgroundDark() { return getColor("theme.bg.dark", 0x232323); }
-    public static Color getBackgroundMedium() { return getColor("theme.bg.medium", 0x282828); }
-    public static Color getBorderColor() { return getColor("theme.border", 0x505050); }
-
-    // Theme - Text
-    public static Color getTextPrimary() { return getColor("theme.text.primary", 0xFFFFFF); }
-    public static Color getTextSecondary() { return getColor("theme.text.secondary", 0xB4B4B4); }
-    public static Color getTextTertiary() { return getColor("theme.text.tertiary", 0x969696); }
-
-    // Theme - Accents
-    public static Color getAccentSuccess() { return getColor("theme.accent.success", 0x64C864); }
-    public static Color getAccentSuccessLight() { return getColor("theme.accent.success.light", 0x96C896); }
-    public static Color getAccentError() { return getColor("theme.accent.error", 0xC86464); }
-    public static Color getAccentWarning() { return getColor("theme.accent.warning", 0xFFAA00); }
-    public static Color getAccentWarningLight() { return getColor("theme.accent.warning.light", 0xFFC864); }
-    public static Color getAccentInfo() { return getColor("theme.accent.info", 0x6496FF); }
-    public static Color getAccentVersion() { return getColor("theme.accent.version", 0x9696FA); }
-
     // Font
     public static String getFallbackFont() { return get("font.fallback", "Arial"); }
 
@@ -43,7 +22,7 @@ public class AppProperties {
                     .getResourceAsStream("app.properties")) {
                 if (input != null) props.load(input);
             } catch (Exception e) {
-                LOG.log(System.Logger.Level.WARNING, "Could not load app.properties, using default colors", e);
+                LOG.log(System.Logger.Level.WARNING, "Could not load app.properties, using defaults", e);
             }
             loaded = true;
         }
@@ -52,10 +31,5 @@ public class AppProperties {
     private static String get(String key, String defaultValue) {
         ensureLoaded();
         return props.getProperty(key, defaultValue);
-    }
-
-    private static Color getColor(String key, int defaultValue) {
-        try { return new Color(Integer.parseInt(get(key, Integer.toHexString(defaultValue)), 16)); }
-        catch (NumberFormatException e) { return new Color(defaultValue); }
     }
 }

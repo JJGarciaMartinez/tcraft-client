@@ -11,14 +11,14 @@ import java.util.function.Consumer;
 public class EventBus {
     private static final System.Logger LOG = System.getLogger(EventBus.class.getName());
 
-    private final List<Consumer<UpdateEvent>> listeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<SyncEvent>> listeners = new CopyOnWriteArrayList<>();
 
-    public void subscribe(Consumer<UpdateEvent> listener) {
+    public void subscribe(Consumer<SyncEvent> listener) {
         listeners.add(listener);
     }
 
-    public void publish(UpdateEvent event) {
-        for (Consumer<UpdateEvent> listener : listeners) {
+    public void publish(SyncEvent event) {
+        for (Consumer<SyncEvent> listener : listeners) {
             try {
                 listener.accept(event);
             } catch (Exception e) {

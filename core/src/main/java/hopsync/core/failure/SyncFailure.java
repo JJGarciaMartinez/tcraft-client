@@ -66,6 +66,11 @@ public sealed interface SyncFailure {
         public String describe() { return "another HopSync process is updating " + path; }
     }
 
+    /** The game folder is, contains or is inside the folder of another pack. */
+    record FolderUsedByPack(String path, String packName) implements SyncFailure {
+        public String describe() { return path + " overlaps the folder of pack " + packName; }
+    }
+
     /** The disk ran out of space while writing. */
     record DiskFull(String path) implements SyncFailure {
         public String describe() { return "no space left while writing " + path; }

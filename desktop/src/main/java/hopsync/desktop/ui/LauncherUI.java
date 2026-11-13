@@ -1,10 +1,10 @@
 package hopsync.desktop.ui;
 
-import hopsync.desktop.config.AppProperties;
-import hopsync.platform.fs.FileSystemService;
+import hopsync.desktop.kit.Palette;
 
 import javax.swing.*;
 import java.awt.*;
+import java.nio.file.Path;
 
 /**
  * The LauncherUI class serves as the primary graphical user interface (GUI) for the Tcraft Client mod updater application.
@@ -41,7 +41,7 @@ public final class LauncherUI extends JFrame {
      * - Creating and integrating functional UI components: HeaderPanel, ModListPanel,
      *   and ControlPanel, which are positioned in the northern, central, and southern regions of the layout, respectively.
      */
-    public LauncherUI(FileSystemService fileSystemService) {
+    public LauncherUI(Path gameDir) {
         super("Tcraft Client - Actualizador de Mods");
         sizeToScreen();
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -49,10 +49,10 @@ public final class LauncherUI extends JFrame {
         setLocationRelativeTo(null);
 
         // Configurar tema oscuro
-        setBackground(AppProperties.getBackgroundDark());
+        setBackground(Palette.background());
 
         // Crear paneles
-        headerPanel = new HeaderPanel(fileSystemService);
+        headerPanel = new HeaderPanel(gameDir);
         modListPanel = new ModListPanel();
         controlPanel = new ControlPanel();
 

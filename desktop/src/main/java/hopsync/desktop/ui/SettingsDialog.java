@@ -1,14 +1,14 @@
 package hopsync.desktop.ui;
 
+import hopsync.core.failure.SyncFailure;
 import hopsync.core.failure.SyncFailures;
-import hopsync.desktop.i18n.Messages;
-
-import hopsync.desktop.config.AppProperties;
-import hopsync.platform.settings.UserSettings;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.PackInfo;
+import hopsync.core.pack.Pack;
+import hopsync.core.pack.PackRegistry;
+import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.Palette;
 import hopsync.platform.manifest.ManifestService;
-import hopsync.platform.settings.SettingsService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -19,10 +19,13 @@ import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Lets the player choose the modpack (manifest URL) and the game folder to keep in sync.
+ * Lets the player choose the modpack (manifest URL) and the game folder to keep in sync. Edits the active
+ * pack, or adds the first one.
  */
 public final class SettingsDialog extends JDialog {
-    private final SettingsService settingsService;
+    private final PackRegistry registry;
+    private final Pack pack;
+    private final Path settingsFile;
     private final ManifestService manifestService;
     private final JTextField urlField = new JTextField(40);
     private final JTextField gameDirField = new JTextField(40);
@@ -30,10 +33,12 @@ public final class SettingsDialog extends JDialog {
     private final JButton checkButton = new JButton("Comprobar");
     private boolean saved;
 
-    private SettingsDialog(Window owner, SettingsService settingsService, ManifestService manifestService,
-                           String url, Path gameDir, boolean firstRun) {
+    private SettingsDialog(Window owner, PackRegistry registry, Pack pack, Path settingsFile,
+                           ManifestService manifestService, String url, Path gameDir, boolean firstRun) {
         super(owner, "Ajustes del pack", ModalityType.APPLICATION_MODAL);
-        this.settingsService = settingsService;
+        this.registry = registry;
+        this.pack = pack;
+        this.settingsFile = settingsFile;
         this.manifestService = manifestService;
 
         urlField.setText(url);
@@ -96,11 +101,13 @@ public final class SettingsDialog extends JDialog {
      *
      * @param firstRun shows an introduction for players opening the app for the first time
      */
-    public static boolean show(Window owner, SettingsService settingsService, ManifestService manifestService,
-                               Path defaultGameDir, boolean firstRun) {
-        String url = settingsService.getManifestUrl();
-        Path gameDir = settingsService.get().map(UserSettings::gameDir).orElse(defaultGameDir);
-        SettingsDialog dialog = new SettingsDialog(owner, settingsService, manifestService, url, gameDir, firstRun);
+    public static boolean show(Window owner, PackRegistry registry, ManifestService manifestService,
+                               String presetManifestUrl, Path settingsFile, Path defaultGameDir, boolean firstRun) {
+        Pack pack = registry.active().orElse(null);
+        String url = pack != null ? pack.manifestUrl() : presetManifestUrl;
+        Path gameDir = pack != null ? pack.gameDir() : defaultGameDir;
+        SettingsDialog dialog = new SettingsDialog(owner, registry, pack, settingsFile, manifestService, url, gameDir,
+            firstRun);
         dialog.setVisible(true);
         return dialog.saved;
     }
@@ -150,14 +157,26 @@ public final class SettingsDialog extends JDialog {
             JOptionPane.showMessageDialog(this, error, "Ajustes no válidos", JOptionPane.WARNING_MESSAGE);
             return;
         }
+        Path gameDir = Path.of(gameDirField.getText().trim()).toAbsolutePath();
         try {
-            settingsService.save(new UserSettings(url, Path.of(gameDirField.getText().trim()).toAbsolutePath()));
+            if (pack == null) {
+                registry.add(url, gameDir);
+            } else {
+                // A different link may be a different pack: its name comes from the next manifest
+                Pack changed = url.equals(pack.manifestUrl()) ? pack : pack.withManifestUrl(url).withName("");
+                registry.update(changed.withGameDir(gameDir));
+            }
             saved = true;
             dispose();
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, Messages.get("settings.saveFailed",
-                    Messages.failure(SyncFailures.from(e, settingsService.settingsFile().toString()))),
-                "Error", JOptionPane.ERROR_MESSAGE);
+            SyncFailure failure = SyncFailures.from(e, settingsFile.toString());
+            if (failure instanceof SyncFailure.FolderUsedByPack) {
+                JOptionPane.showMessageDialog(this, Messages.failure(failure), "Ajustes no válidos",
+                    JOptionPane.WARNING_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, Messages.get("settings.saveFailed", Messages.failure(failure)),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
@@ -181,7 +200,7 @@ public final class SettingsDialog extends JDialog {
 
     private void showResult(String text, boolean error) {
         checkResult.setText(text);
-        checkResult.setForeground(error ? AppProperties.getAccentError() : UIManager.getColor("Label.foreground"));
+        checkResult.setForeground(error ? Palette.error() : UIManager.getColor("Label.foreground"));
         pack();
     }
 }
