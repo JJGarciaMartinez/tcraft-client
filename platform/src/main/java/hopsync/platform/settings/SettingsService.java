@@ -2,6 +2,7 @@ package hopsync.platform.settings;
 
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -41,5 +42,10 @@ public class SettingsService {
     public void save(UserSettings settings) throws IOException {
         store.save(settings);
         current.set(Optional.of(settings));
+    }
+
+    /** Where the settings are saved, to name it when saving fails. */
+    public Path settingsFile() {
+        return store.getFile();
     }
 }

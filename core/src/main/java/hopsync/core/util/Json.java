@@ -32,14 +32,14 @@ public final class Json {
      */
     public static Object parse(String text) throws JsonParseException {
         if (text == null) {
-            throw new JsonParseException("JSON nulo", 0);
+            throw new JsonParseException("null JSON", 0);
         }
         Json parser = new Json(text);
         parser.skipWhitespace();
         Object value = parser.readValue();
         parser.skipWhitespace();
         if (parser.pos < text.length()) {
-            throw parser.error("contenido inesperado después del JSON");
+            throw parser.error("unexpected content after the JSON value");
         }
         return value;
     }
@@ -113,7 +113,7 @@ public final class Json {
 
     private Object readValue() throws JsonParseException {
         if (pos >= text.length()) {
-            throw error("fin inesperado del JSON");
+            throw error("unexpected end of JSON");
         }
         char c = text.charAt(pos);
         return switch (c) {
@@ -125,7 +125,7 @@ public final class Json {
             case 'n' -> readLiteral("null", null);
             default -> {
                 if (c == '-' || (c >= '0' && c <= '9')) yield readNumber();
-                throw error("carácter inesperado '" + c + "'");
+                throw error("unexpected character '" + c + "'");
             }
         };
     }
@@ -143,13 +143,13 @@ public final class Json {
         while (true) {
             skipWhitespace();
             if (peek() != '"') {
-                throw error("se esperaba una clave entre comillas");
+                throw error("expected a quoted key");
             }
             int keyPos = pos;
             String key = readString();
             if (map.containsKey(key)) {
                 pos = keyPos;
-                throw error("clave duplicada \"" + key + "\"");
+                throw error("duplicate key \"" + key + "\"");
             }
             skipWhitespace();
             expect(':');
@@ -160,7 +160,7 @@ public final class Json {
             if (c == '}') break;
             if (c != ',') {
                 pos--;
-                throw error("se esperaba ',' o '}'");
+                throw error("expected ',' or '}'");
             }
         }
         depth--;
@@ -185,7 +185,7 @@ public final class Json {
             if (c == ']') break;
             if (c != ',') {
                 pos--;
-                throw error("se esperaba ',' o ']'");
+                throw error("expected ',' or ']'");
             }
         }
         depth--;
@@ -197,7 +197,7 @@ public final class Json {
         StringBuilder sb = new StringBuilder();
         while (true) {
             if (pos >= text.length()) {
-                throw error("cadena sin cerrar");
+                throw error("unterminated string");
             }
             char c = text.charAt(pos++);
             if (c == '"') {
@@ -205,7 +205,7 @@ public final class Json {
             }
             if (c < 0x20) {
                 pos--;
-                throw error("carácter de control sin escapar en cadena");
+                throw error("unescaped control character in string");
             }
             if (c != '\\') {
                 sb.append(c);
@@ -224,7 +224,7 @@ public final class Json {
                 case 'u' -> sb.append(readUnicodeEscape());
                 default -> {
                     pos--;
-                    throw error("secuencia de escape inválida '\\" + esc + "'");
+                    throw error("invalid escape sequence '\\" + esc + "'");
                 }
             }
         }
@@ -232,13 +232,13 @@ public final class Json {
 
     private char readUnicodeEscape() throws JsonParseException {
         if (pos + 4 > text.length()) {
-            throw error("escape \\u incompleto");
+            throw error("incomplete \\u escape");
         }
         int value = 0;
         for (int i = 0; i < 4; i++) {
             int digit = Character.digit(text.charAt(pos + i), 16);
             if (digit < 0) {
-                throw error("escape \\u con dígito hexadecimal inválido");
+                throw error("invalid hex digit in \\u escape");
             }
             value = value * 16 + digit;
         }
@@ -254,20 +254,20 @@ public final class Json {
         } else if (isDigit(peek())) {
             while (isDigit(peek())) pos++;
         } else {
-            throw error("número inválido");
+            throw error("invalid number");
         }
         boolean integral = true;
         if (peek() == '.') {
             integral = false;
             pos++;
-            if (!isDigit(peek())) throw error("se esperaba un dígito después del punto decimal");
+            if (!isDigit(peek())) throw error("expected a digit after the decimal point");
             while (isDigit(peek())) pos++;
         }
         if (peek() == 'e' || peek() == 'E') {
             integral = false;
             pos++;
             if (peek() == '+' || peek() == '-') pos++;
-            if (!isDigit(peek())) throw error("exponente inválido");
+            if (!isDigit(peek())) throw error("invalid exponent");
             while (isDigit(peek())) pos++;
         }
         String number = text.substring(start, pos);
@@ -283,7 +283,7 @@ public final class Json {
 
     private Object readLiteral(String literal, Object value) throws JsonParseException {
         if (!text.startsWith(literal, pos)) {
-            throw error("literal inválido");
+            throw error("invalid literal");
         }
         pos += literal.length();
         return value;
@@ -291,7 +291,7 @@ public final class Json {
 
     private void enter() throws JsonParseException {
         if (++depth > MAX_DEPTH) {
-            throw error("anidamiento demasiado profundo");
+            throw error("nesting too deep");
         }
     }
 
@@ -309,14 +309,14 @@ public final class Json {
 
     private char next() throws JsonParseException {
         if (pos >= text.length()) {
-            throw error("fin inesperado del JSON");
+            throw error("unexpected end of JSON");
         }
         return text.charAt(pos++);
     }
 
     private void expect(char expected) throws JsonParseException {
         if (peek() != expected) {
-            throw error("se esperaba '" + expected + "'");
+            throw error("expected '" + expected + "'");
         }
         pos++;
     }

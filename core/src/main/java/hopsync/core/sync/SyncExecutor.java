@@ -1,9 +1,12 @@
 package hopsync.core.sync;
 
+import hopsync.core.failure.SyncFailure;
+import hopsync.core.failure.SyncFailures;
 import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.sync.SyncPlan.ConfigAction;
 import hopsync.core.sync.SyncPlan.ModAction;
+import hopsync.core.util.CancellationToken;
 import hopsync.core.util.SafePaths;
 
 import java.io.IOException;
@@ -32,12 +35,16 @@ import java.util.stream.Stream;
  * on disk, so it can always be saved.
  */
 public class SyncExecutor {
+    private static final System.Logger LOG = System.getLogger(SyncExecutor.class.getName());
 
     /** Progress callbacks; may be invoked from worker threads. */
     public interface Listener {
         void modStarted(String file);
 
-        void modFinished(String file, boolean success, String error);
+        /**
+         * @param failure why the mod could not be installed, or {@code null} on success
+         */
+        void modFinished(String file, boolean success, SyncFailure failure);
 
         void modRemoved(String file);
 
@@ -62,9 +69,9 @@ public class SyncExecutor {
         this.parallelism = parallelism;
     }
 
-    public Result execute(SyncPlan plan, LocalState previous, Listener listener, BooleanSupplier cancelRequested) {
+    public Result execute(SyncPlan plan, LocalState previous, Listener listener, CancellationToken cancel) {
         AtomicBoolean cancelled = new AtomicBoolean(false);
-        BooleanSupplier isCancelled = () -> cancelled.get() || cancelRequested.getAsBoolean();
+        BooleanSupplier isCancelled = () -> cancelled.get() || cancel.isCancelled();
         deleteStaleParts(listener);
 
         Map<String, FileRecord> mods = new ConcurrentHashMap<>(plan.keptMods());
@@ -73,7 +80,7 @@ public class SyncExecutor {
         AtomicInteger failed = new AtomicInteger();
         Progress progress = new Progress(plan.downloadBytes(), listener);
 
-        downloadMods(plan.modDownloads(), mods, succeeded, failed, progress, listener, isCancelled, cancelled);
+        downloadMods(plan.modDownloads(), mods, succeeded, failed, progress, listener, cancel, isCancelled, cancelled);
 
         // A mod whose update failed keeps its old file, so it stays managed under its old record
         for (ModAction action : plan.modDownloads()) {
@@ -92,7 +99,7 @@ public class SyncExecutor {
         }
 
         removeMods(plan.removals(), previous, mods, listener);
-        installConfigs(plan.configs(), previous, configs, failed, progress, listener, isCancelled);
+        installConfigs(plan.configs(), previous, configs, failed, progress, listener, cancel, isCancelled);
 
         boolean complete = failed.get() == 0 && !isCancelled.getAsBoolean();
         String contentHash = complete ? plan.manifest().contentHash() : previous.contentHash();
@@ -102,11 +109,12 @@ public class SyncExecutor {
 
     private void downloadMods(List<ModAction> downloads, Map<String, FileRecord> mods, AtomicInteger succeeded,
                               AtomicInteger failed, Progress progress, Listener listener,
-                              BooleanSupplier isCancelled, AtomicBoolean cancelled) {
+                              CancellationToken cancel, BooleanSupplier isCancelled, AtomicBoolean cancelled) {
         if (downloads.isEmpty()) {
             return;
         }
-        ExecutorService pool = Executors.newFixedThreadPool(Math.min(parallelism, downloads.size()));
+        ExecutorService pool = Executors.newFixedThreadPool(Math.min(parallelism, downloads.size()),
+            Thread.ofVirtual().name("hopsync-download-", 0).factory());
         try {
             List<Future<?>> futures = new ArrayList<>();
             for (ModAction action : downloads) {
@@ -118,7 +126,7 @@ public class SyncExecutor {
                     listener.modStarted(mod.file());
                     try {
                         Path target = SafePaths.resolveInside(modsDir, mod.file());
-                        downloader.download(mod.url(), target, mod.sha512(), mod.size(), progress::add, isCancelled);
+                        downloader.download(mod.url(), target, mod.sha512(), mod.size(), progress::add, cancel);
                         mods.put(mod.file(), recordOf(target, mod.sha512()));
                         succeeded.incrementAndGet();
                         listener.modFinished(mod.file(), true, null);
@@ -126,8 +134,9 @@ public class SyncExecutor {
                         cancelled.set(true);
                     } catch (IOException | RuntimeException e) {
                         failed.incrementAndGet();
-                        listener.modFinished(mod.file(), false, e.getMessage());
-                        listener.log("Error en " + mod.file() + ": " + e.getMessage());
+                        SyncFailure failure = SyncFailures.from(e, mod.file());
+                        listener.modFinished(mod.file(), false, failure);
+                        listener.log("Failed to install " + mod.file() + ": " + failure.describe());
                     }
                 }));
             }
@@ -151,17 +160,17 @@ public class SyncExecutor {
             try {
                 Files.deleteIfExists(SafePaths.resolveInside(modsDir, file));
                 listener.modRemoved(file);
-                listener.log("Eliminado: " + file);
+                listener.log("Removed " + file);
             } catch (IOException e) {
                 mods.put(file, previous.mods().get(file));
-                listener.log("Advertencia: no se pudo eliminar " + file + ": " + e.getMessage());
+                listener.log("Could not remove " + file + ": " + SyncFailures.from(e, file).describe());
             }
         }
     }
 
     private void installConfigs(List<ConfigAction> actions, LocalState previous, Map<String, FileRecord> configs,
                                 AtomicInteger failed, Progress progress, Listener listener,
-                                BooleanSupplier isCancelled) {
+                                CancellationToken cancel, BooleanSupplier isCancelled) {
         for (ConfigAction action : actions) {
             ConfigEntry config = action.config();
             FileRecord old = previous.configs().get(config.path());
@@ -170,7 +179,7 @@ public class SyncExecutor {
                 case KEEP_EDITED -> {
                     // Remember the version HopSync installed, so later updates still see the player's edit
                     if (old != null) configs.put(config.path(), old);
-                    listener.log("Config conservada (modificada por ti): " + config.path());
+                    listener.log("Kept config edited by the player: " + config.path());
                 }
                 case INSTALL, REPLACE -> {
                     if (isCancelled.getAsBoolean()) {
@@ -181,15 +190,15 @@ public class SyncExecutor {
                         Path target = SafePaths.resolveInside(configDir, config.path());
                         Files.createDirectories(target.getParent());
                         downloader.download(config.url(), target, config.sha512(), config.size(), progress::add,
-                            isCancelled);
+                            cancel);
                         configs.put(config.path(), recordOf(target, config.sha512()));
-                        listener.log("Config instalada: " + config.path());
+                        listener.log("Installed config " + config.path());
                     } catch (CancellationException e) {
                         if (old != null) configs.put(config.path(), old);
                     } catch (IOException | RuntimeException e) {
                         failed.incrementAndGet();
                         if (old != null) configs.put(config.path(), old);
-                        listener.log("Advertencia: no se pudo instalar " + config.path() + ": " + e.getMessage());
+                        listener.log("Could not install config " + config.path() + ": " + SyncFailures.from(e, config.path()).describe());
                     }
                 }
             }
@@ -215,7 +224,7 @@ public class SyncExecutor {
                     Files.deleteIfExists(part);
                 }
             } catch (IOException e) {
-                listener.log("Advertencia: no se pudieron limpiar descargas incompletas en " + dir);
+                listener.log("Could not clean up incomplete downloads in " + dir);
             }
         }
     }
@@ -227,7 +236,7 @@ public class SyncExecutor {
     private static void awaitTermination(ExecutorService pool) {
         try {
             if (!pool.awaitTermination(30, TimeUnit.SECONDS)) {
-                System.err.println("Warning: download threads did not stop in time");
+                LOG.log(System.Logger.Level.WARNING, "Download threads did not stop in time");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

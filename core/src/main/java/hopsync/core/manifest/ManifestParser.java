@@ -1,5 +1,8 @@
 package hopsync.core.manifest;
 
+import hopsync.core.failure.SyncFailure;
+import hopsync.core.util.JsonParseException;
+
 import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
@@ -32,12 +35,17 @@ public final class ManifestParser {
     }
 
     public static Manifest parse(String json) throws IOException {
-        Map<String, Object> root = asObject(Json.parse(json), "manifest");
+        Object document;
+        try {
+            document = Json.parse(json);
+        } catch (JsonParseException e) {
+            throw new ManifestException(e.getMessage(), e);
+        }
+        Map<String, Object> root = asObject(document, "manifest");
 
         long format = requireLong(root, "format_version", "manifest");
         if (format != Manifest.SUPPORTED_FORMAT_VERSION) {
-            throw new ManifestException("Versión de manifest no soportada: " + format
-                + " (esta versión de la app soporta la " + Manifest.SUPPORTED_FORMAT_VERSION + ")");
+            throw new ManifestException(new SyncFailure.UnsupportedFormat(format, Manifest.SUPPORTED_FORMAT_VERSION));
         }
 
         PackInfo pack = parsePack(asObject(require(root, "pack", "manifest"), "pack"));
@@ -68,10 +76,10 @@ public final class ManifestParser {
 
             String file = requireText(mod, "file", where);
             if (!SafePaths.isSafeFileName(file) || !file.endsWith(".jar")) {
-                throw new ManifestException(where + ".file no es un nombre de archivo .jar válido: " + file);
+                throw new ManifestException(where + ".file is not a valid .jar file name: " + file);
             }
             if (!files.add(file.toLowerCase(Locale.ROOT))) {
-                throw new ManifestException(where + ".file está duplicado: " + file);
+                throw new ManifestException(where + ".file is duplicated: " + file);
             }
 
             mods.add(new ModEntry(
@@ -99,15 +107,15 @@ public final class ManifestParser {
 
             String path = requireText(config, "path", where);
             if (!SafePaths.isSafeRelativePath(path)) {
-                throw new ManifestException(where + ".path no es una ruta relativa válida: " + path);
+                throw new ManifestException(where + ".path is not a valid relative path: " + path);
             }
             if (!paths.add(path.toLowerCase(Locale.ROOT))) {
-                throw new ManifestException(where + ".path está duplicado: " + path);
+                throw new ManifestException(where + ".path is duplicated: " + path);
             }
 
             Object overwrite = require(config, "overwrite", where);
             if (!(overwrite instanceof Boolean flag)) {
-                throw new ManifestException(where + ".overwrite debe ser true o false");
+                throw new ManifestException(where + ".overwrite must be true or false");
             }
 
             configs.add(new ConfigEntry(
@@ -125,7 +133,7 @@ public final class ManifestParser {
         return switch (source) {
             case "modrinth" -> ModSource.MODRINTH;
             case "local" -> ModSource.LOCAL;
-            default -> throw new ManifestException(where + ".source desconocido: " + source);
+            default -> throw new ManifestException(where + ".source is unknown: " + source);
         };
     }
 
@@ -133,7 +141,7 @@ public final class ManifestParser {
 
     private static Object require(Map<String, Object> obj, String key, String where) throws ManifestException {
         if (!obj.containsKey(key) || obj.get(key) == null) {
-            throw new ManifestException("Falta el campo " + where + "." + key);
+            throw new ManifestException("Missing field " + where + "." + key);
         }
         return obj.get(key);
     }
@@ -141,7 +149,7 @@ public final class ManifestParser {
     private static String requireText(Map<String, Object> obj, String key, String where) throws ManifestException {
         Object value = require(obj, key, where);
         if (!(value instanceof String s) || s.isBlank()) {
-            throw new ManifestException(where + "." + key + " debe ser un texto no vacío");
+            throw new ManifestException(where + "." + key + " must be a non-empty string");
         }
         return s;
     }
@@ -153,7 +161,7 @@ public final class ManifestParser {
             return fallback;
         }
         if (!(value instanceof String s)) {
-            throw new ManifestException(where + "." + key + " debe ser un texto");
+            throw new ManifestException(where + "." + key + " must be a string");
         }
         return s;
     }
@@ -162,14 +170,14 @@ public final class ManifestParser {
             throws ManifestException {
         String value = requireText(obj, key, where);
         if (!pattern.matcher(value).matches()) {
-            throw new ManifestException(where + "." + key + " tiene un formato inválido");
+            throw new ManifestException(where + "." + key + " has an invalid format");
         }
         return value;
     }
 
     private static long requireLong(Map<String, Object> obj, String key, String where) throws ManifestException {
         if (!(require(obj, key, where) instanceof Long n)) {
-            throw new ManifestException(where + "." + key + " debe ser un número entero");
+            throw new ManifestException(where + "." + key + " must be an integer");
         }
         return n;
     }
@@ -177,7 +185,7 @@ public final class ManifestParser {
     private static long requireSize(Map<String, Object> obj, String where) throws ManifestException {
         long size = requireLong(obj, "size", where);
         if (size < 0) {
-            throw new ManifestException(where + ".size no puede ser negativo");
+            throw new ManifestException(where + ".size cannot be negative");
         }
         return size;
     }
@@ -187,10 +195,10 @@ public final class ManifestParser {
         try {
             URI uri = new URI(url);
             if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null) {
-                throw new ManifestException(where + ".url debe ser una URL https: " + url);
+                throw new ManifestException(where + ".url must be an https URL: " + url);
             }
         } catch (URISyntaxException e) {
-            throw new ManifestException(where + ".url no es una URL válida: " + url);
+            throw new ManifestException(where + ".url is not a valid URL: " + url);
         }
         return url;
     }
@@ -198,7 +206,7 @@ public final class ManifestParser {
     @SuppressWarnings("unchecked")
     private static Map<String, Object> asObject(Object value, String where) throws ManifestException {
         if (!(value instanceof Map<?, ?>)) {
-            throw new ManifestException(where + " debe ser un objeto JSON");
+            throw new ManifestException(where + " must be a JSON object");
         }
         return (Map<String, Object>) value;
     }
@@ -206,7 +214,7 @@ public final class ManifestParser {
     @SuppressWarnings("unchecked")
     private static List<Object> asArray(Object value, String where) throws ManifestException {
         if (!(value instanceof List<?>)) {
-            throw new ManifestException(where + " debe ser una lista JSON");
+            throw new ManifestException(where + " must be a JSON array");
         }
         return (List<Object>) value;
     }

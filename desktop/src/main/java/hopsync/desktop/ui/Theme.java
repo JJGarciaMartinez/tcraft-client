@@ -12,6 +12,8 @@ import java.util.Map;
  * using the app's palette from app.properties.
  */
 public final class Theme {
+    private static final System.Logger LOG = System.getLogger(Theme.class.getName());
+
 
     private Theme() {
     }
@@ -28,7 +30,7 @@ public final class Theme {
             "TextComponent.selectAllOnFocusPolicy", "never"
         ));
         if (!FlatDarkLaf.setup()) {
-            System.err.println("Warning: could not install the dark theme, using the default look and feel");
+            LOG.log(System.Logger.Level.WARNING, "Could not install the dark theme, using the default look and feel");
         }
     }
 

@@ -1,5 +1,8 @@
 package hopsync.desktop.ui;
 
+import hopsync.core.failure.SyncFailures;
+import hopsync.desktop.i18n.Messages;
+
 import hopsync.desktop.config.AppProperties;
 import hopsync.platform.settings.UserSettings;
 import hopsync.core.manifest.Manifest;
@@ -129,7 +132,7 @@ public final class SettingsDialog extends JDialog {
                     showResult("✔ " + pack.name() + " " + pack.version() + " · Minecraft " + pack.minecraft()
                         + " · " + pack.loader() + " · " + get().mods().size() + " mods", false);
                 } catch (ExecutionException e) {
-                    showResult("✖ " + e.getCause().getMessage(), true);
+                    showResult("✖ " + Messages.failure(SyncFailures.from(e.getCause(), "")), true);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -152,7 +155,8 @@ public final class SettingsDialog extends JDialog {
             saved = true;
             dispose();
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "No se pudieron guardar los ajustes: " + e.getMessage(),
+            JOptionPane.showMessageDialog(this, Messages.get("settings.saveFailed",
+                    Messages.failure(SyncFailures.from(e, settingsService.settingsFile().toString()))),
                 "Error", JOptionPane.ERROR_MESSAGE);
         }
     }

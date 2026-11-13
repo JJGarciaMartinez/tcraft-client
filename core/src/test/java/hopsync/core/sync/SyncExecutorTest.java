@@ -1,6 +1,8 @@
 package hopsync.core.sync;
 
+import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.ModEntry;
+import hopsync.core.util.CancellationToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -17,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static hopsync.core.sync.Fixtures.config;
@@ -43,7 +44,7 @@ class SyncExecutorTest {
     final List<String> events = Collections.synchronizedList(new ArrayList<>());
 
     final FileDownloader fakeDownloader = (url, destination, sha512, size, onBytes, cancelled) -> {
-        if (cancelled.getAsBoolean()) throw new CancellationException();
+        if (cancelled.isCancelled()) throw new CancellationException();
         if (failing.contains(url)) throw new IOException("boom");
         String content = remote.get(url);
         Files.writeString(destination, content, StandardCharsets.UTF_8);
@@ -52,11 +53,17 @@ class SyncExecutorTest {
 
     final SyncExecutor.Listener listener = new SyncExecutor.Listener() {
         public void modStarted(String file) { events.add("start " + file); }
-        public void modFinished(String file, boolean success, String error) { events.add((success ? "ok " : "fail ") + file); }
+        public void modFinished(String file, boolean success, SyncFailure failure) { events.add((success ? "ok " : "fail ") + file); }
         public void modRemoved(String file) { events.add("removed " + file); }
         public void progress(int percent) { events.add("progress " + percent); }
         public void log(String message) { }
     };
+
+    private static CancellationToken cancelled() {
+        CancellationToken token = new CancellationToken();
+        token.cancel();
+        return token;
+    }
 
     @BeforeEach
     void setUp() throws IOException {
@@ -70,7 +77,7 @@ class SyncExecutorTest {
         return entry;
     }
 
-    private SyncExecutor.Result run(SyncPlan plan, LocalState previous, java.util.function.BooleanSupplier cancel) {
+    private SyncExecutor.Result run(SyncPlan plan, LocalState previous, CancellationToken cancel) {
         return new SyncExecutor(fakeDownloader, mods, configs, 3).execute(plan, previous, listener, cancel);
     }
 
@@ -90,7 +97,7 @@ class SyncExecutorTest {
             List.of(config("sub/c.toml", "C", false)));
         remote.put(manifest.configs().get(0).url(), "C");
 
-        SyncExecutor.Result result = run(plan(manifest, previous), previous, () -> false);
+        SyncExecutor.Result result = run(plan(manifest, previous), previous, CancellationToken.none());
 
         assertFalse(result.cancelled());
         assertEquals(2, result.succeeded());
@@ -118,7 +125,7 @@ class SyncExecutorTest {
         ModEntry b = served("b.jar", "B");
         failing.add(a.url());
 
-        SyncExecutor.Result result = run(plan(manifest(List.of(a, b), List.of()), previous), previous, () -> false);
+        SyncExecutor.Result result = run(plan(manifest(List.of(a, b), List.of()), previous), previous, CancellationToken.none());
 
         assertEquals(1, result.failed());
         assertEquals(1, result.succeeded());
@@ -134,7 +141,7 @@ class SyncExecutorTest {
         LocalState previous = new LocalState(null, Map.of("removable.jar", removable), Map.of());
         var manifest = manifest(List.of(served("a.jar", "A")), List.of(config("c.toml", "C", true)));
 
-        SyncExecutor.Result result = run(plan(manifest, previous), previous, () -> true);
+        SyncExecutor.Result result = run(plan(manifest, previous), previous, cancelled());
 
         assertTrue(result.cancelled());
         assertTrue(Files.exists(mods.resolve("removable.jar")));
@@ -148,15 +155,15 @@ class SyncExecutorTest {
         List<ModEntry> entries = new ArrayList<>();
         for (int i = 0; i < 20; i++) entries.add(served("m" + i + ".jar", "content " + i));
         AtomicInteger downloads = new AtomicInteger();
-        AtomicBoolean cancel = new AtomicBoolean();
+        CancellationToken cancel = new CancellationToken();
         FileDownloader cancelAfterTwo = (url, destination, sha512, size, onBytes, cancelled) -> {
-            if (cancelled.getAsBoolean()) throw new CancellationException();
+            if (cancelled.isCancelled()) throw new CancellationException();
             fakeDownloader.download(url, destination, sha512, size, onBytes, cancelled);
-            if (downloads.incrementAndGet() >= 2) cancel.set(true);
+            if (downloads.incrementAndGet() >= 2) cancel.cancel();
         };
 
         SyncExecutor.Result result = new SyncExecutor(cancelAfterTwo, mods, configs, 1)
-            .execute(plan(manifest(entries, List.of()), LocalState.empty()), LocalState.empty(), listener, cancel::get);
+            .execute(plan(manifest(entries, List.of()), LocalState.empty()), LocalState.empty(), listener, cancel);
 
         assertTrue(result.cancelled());
         assertEquals(2, result.succeeded());
@@ -171,7 +178,7 @@ class SyncExecutorTest {
         LocalState previous = new LocalState(null, Map.of(), Map.of("a.toml", installed));
 
         SyncExecutor.Result result = run(plan(manifest(List.of(), List.of(config("a.toml", "v2", false))), previous),
-            previous, () -> false);
+            previous, CancellationToken.none());
 
         assertEquals("player edit", Files.readString(file));
         assertEquals(installed, result.state().configs().get("a.toml"));
@@ -183,7 +190,7 @@ class SyncExecutorTest {
         write(configs, "deep/y.toml" + FileDownloader.PART_SUFFIX, "partial");
         write(mods, "unrelated.part", "not ours");
 
-        run(plan(manifest(List.of(), List.of()), LocalState.empty()), LocalState.empty(), () -> false);
+        run(plan(manifest(List.of(), List.of()), LocalState.empty()), LocalState.empty(), CancellationToken.none());
 
         assertFalse(Files.exists(mods.resolve("x.jar" + FileDownloader.PART_SUFFIX)));
         assertFalse(Files.exists(configs.resolve("deep/y.toml" + FileDownloader.PART_SUFFIX)));

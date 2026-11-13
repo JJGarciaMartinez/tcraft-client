@@ -1,6 +1,7 @@
 package hopsync.desktop.ui;
 
 import hopsync.desktop.config.AppProperties;
+import hopsync.desktop.i18n.Messages;
 import hopsync.core.event.UpdateEvent;
 import hopsync.desktop.ui.ModInfo;
 import hopsync.core.manifest.PackInfo;
@@ -29,12 +30,12 @@ public class UpdateEventHandler {
                 ui.getModListPanel().clear();
                 ui.getControlPanel().setUpdateInProgress(true);
                 ui.getHeaderPanel().setStatusProcessing();
-                ui.getControlPanel().updateStatus("Comprobando el pack...");
+                ui.getControlPanel().updateStatus(Messages.get("status.checking"));
             }
             case UpdateEvent.PlanReady e -> {
                 showPlan(e.plan());
                 ui.getHeaderPanel().showPack(e.plan().manifest().pack());
-                ui.getControlPanel().updateStatus("Revisa los cambios antes de aplicarlos");
+                ui.getControlPanel().updateStatus(Messages.get("status.review"));
             }
             case UpdateEvent.UpToDate e -> {
                 showPlan(e.plan());
@@ -42,41 +43,48 @@ public class UpdateEventHandler {
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getHeaderPanel().setStatusSuccess();
                 PackInfo pack = e.plan().manifest().pack();
-                ui.getControlPanel().updateStatus("Todo al día: " + pack.name() + " " + pack.version());
+                ui.getControlPanel().updateStatus(Messages.get("status.upToDate", pack.name(), pack.version()));
             }
             case UpdateEvent.ApplyStarted e -> {
                 ui.getControlPanel().updateProgress(0);
                 ui.getControlPanel().showProgress();
-                ui.getControlPanel().updateStatus("Aplicando cambios...");
+                ui.getControlPanel().updateStatus(Messages.get("status.applying"));
             }
             case UpdateEvent.UpdateCompleted e -> {
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getControlPanel().hideProgress();
                 if (e.failCount() > 0) {
                     ui.getHeaderPanel().setStatusWarning();
-                    ui.getControlPanel().updateStatus("Completado con " + e.failCount() + " errores");
+                    ui.getControlPanel().updateStatus(Messages.get("status.completedWithErrors", e.failCount()));
                 } else {
                     ui.getHeaderPanel().setStatusSuccess();
-                    ui.getControlPanel().updateStatus("¡Actualización completada!");
+                    ui.getControlPanel().updateStatus(Messages.get("status.completed"));
                 }
             }
             case UpdateEvent.UpdateCancelled e -> {
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getControlPanel().hideProgress();
                 ui.getHeaderPanel().setStatusWarning();
-                ui.getControlPanel().updateStatus("Actualización cancelada");
+                ui.getControlPanel().updateStatus(Messages.get("status.cancelled"));
             }
             case UpdateEvent.UpdateFailed e -> {
                 ui.getControlPanel().setUpdateInProgress(false);
                 ui.getControlPanel().hideProgress();
                 ui.getHeaderPanel().setStatusError();
-                ui.getControlPanel().updateStatus("Error: " + e.error());
+                ui.getControlPanel().updateStatus(Messages.failure(e.failure()));
             }
             case UpdateEvent.ProgressChanged e -> ui.getControlPanel().updateProgress(e.percent());
             case UpdateEvent.ModDownloading e -> ui.getModListPanel().setModDownloading(e.file());
-            case UpdateEvent.ModCompleted e -> ui.getModListPanel().setModCompleted(e.file(), e.success());
+            case UpdateEvent.ModCompleted e -> {
+                if (e.failure() == null) {
+                    ui.getModListPanel().setModCompleted(e.file(), e.success());
+                } else {
+                    ui.getModListPanel().setModStatus(e.file(), StatusType.ERROR, Messages.failure(e.failure()),
+                        AppProperties.getAccentError());
+                }
+            }
             case UpdateEvent.ModRemoved e -> ui.getModListPanel().setModStatus(e.file(), StatusType.WARNING,
-                "Eliminado", AppProperties.getAccentWarning());
+                Messages.get("mod.removed"), AppProperties.getAccentWarning());
             // Can be shown in a log panel if needed
             case UpdateEvent.LogMessage e -> { }
         }
@@ -90,14 +98,14 @@ public class UpdateEventHandler {
             String file = action.mod().file();
             switch (action.change()) {
                 case UP_TO_DATE -> list.setModAlreadyInstalled(file);
-                case NEW -> list.setModStatus(file, StatusType.PROCESSING, "Nuevo", AppProperties.getAccentInfo());
-                case UPDATE -> list.setModStatus(file, StatusType.PROCESSING, "Se actualizará",
+                case NEW -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.new"), AppProperties.getAccentInfo());
+                case UPDATE -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.willUpdate"),
                     AppProperties.getAccentWarningLight());
             }
         }
         for (String file : plan.removals()) {
             list.addModSync(ModInfo.installed(file));
-            list.setModStatus(file, StatusType.WARNING, "Se eliminará", AppProperties.getAccentWarning());
+            list.setModStatus(file, StatusType.WARNING, Messages.get("mod.willRemove"), AppProperties.getAccentWarning());
         }
     }
 }

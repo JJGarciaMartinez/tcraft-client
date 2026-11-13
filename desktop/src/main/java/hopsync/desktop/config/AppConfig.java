@@ -12,6 +12,8 @@ import java.util.Properties;
  * @param presetManifestUrl manifest offered to players who have not chosen a pack yet
  */
 public record AppConfig(NetworkConfig network, String presetManifestUrl) {
+    private static final System.Logger LOG = System.getLogger(AppConfig.class.getName());
+
     static final String DEFAULT_MANIFEST_URL =
         "https://github.com/JJGarciaMartinez/hopsync-demo/releases/download/hopsync/manifest.json";
 
@@ -20,7 +22,7 @@ public record AppConfig(NetworkConfig network, String presetManifestUrl) {
         try (InputStream input = AppConfig.class.getClassLoader().getResourceAsStream("app.properties")) {
             if (input != null) props.load(input);
         } catch (IOException e) {
-            System.err.println("Warning: could not load app.properties, using defaults: " + e.getMessage());
+            LOG.log(System.Logger.Level.WARNING, "Could not load app.properties, using defaults", e);
         }
         return fromProperties(props);
     }

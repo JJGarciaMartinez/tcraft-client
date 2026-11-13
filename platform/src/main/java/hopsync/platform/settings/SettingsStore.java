@@ -1,15 +1,14 @@
 package hopsync.platform.settings;
 
+import hopsync.core.util.AtomicFiles;
 import hopsync.core.util.Json;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -19,6 +18,7 @@ import java.util.Optional;
  * Persists {@link UserSettings} as JSON in the operating system's per-user configuration folder.
  */
 public class SettingsStore {
+    private static final System.Logger LOG = System.getLogger(SettingsStore.class.getName());
     private static final int FORMAT = 1;
 
     private final Path file;
@@ -83,7 +83,7 @@ public class SettingsStore {
         } catch (NoSuchFileException e) {
             return Optional.empty();
         } catch (IOException | ClassCastException | InvalidPathException e) {
-            System.err.println("Warning: ignoring unreadable settings " + file + ": " + e.getMessage());
+            LOG.log(System.Logger.Level.WARNING, "Ignoring unreadable settings " + file, e);
             return Optional.empty();
         }
     }
@@ -94,13 +94,6 @@ public class SettingsStore {
         root.put("manifest_url", settings.manifestUrl());
         root.put("game_dir", settings.gameDir().toAbsolutePath().toString());
 
-        Files.createDirectories(file.getParent());
-        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tmp, Json.write(root), StandardCharsets.UTF_8);
-        try {
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
-        }
+        AtomicFiles.writeString(file, Json.write(root));
     }
 }

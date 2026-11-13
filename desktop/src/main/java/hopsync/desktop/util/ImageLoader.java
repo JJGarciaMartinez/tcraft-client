@@ -9,6 +9,8 @@ import java.net.URL;
  * This allows images to be loaded both when running from the IDE and when packaged in a JAR file.
  */
 public class ImageLoader {
+    private static final System.Logger LOG = System.getLogger(ImageLoader.class.getName());
+
 
     /**
      * Loads an ImageIcon from the classpath.
@@ -21,13 +23,13 @@ public class ImageLoader {
             URL resourceUrl = ImageLoader.class.getClassLoader().getResource(path);
 
             if (resourceUrl == null) {
-                System.err.println("Error: No se encontró la imagen en el classpath: " + path);
+                LOG.log(System.Logger.Level.WARNING, "Image not found in the classpath: " + path);
                 return null;
             }
 
             return new ImageIcon(resourceUrl);
         } catch (Exception e) {
-            System.err.println("Error al cargar la imagen " + path + ": " + e.getMessage());
+            LOG.log(System.Logger.Level.WARNING, "Could not load image " + path, e);
             return null;
         }
     }
