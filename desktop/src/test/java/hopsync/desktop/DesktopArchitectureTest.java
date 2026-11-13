@@ -15,7 +15,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 class DesktopArchitectureTest {
 
     @ArchTest
-    static final ArchRule screensOnlyTalkToTheStore = noClasses().that().resideInAPackage("hopsync.desktop.ui..")
+    static final ArchRule screensOnlyTalkToTheStore = noClasses().that()
+        .resideInAnyPackage("hopsync.desktop.ui..", "hopsync.desktop.screens..")
         .should().dependOnClassesThat().resideInAnyPackage("hopsync.core.session..", "hopsync.core.usecase..",
             "hopsync.desktop.effects..")
         .because("screens dispatch actions; only Effects starts, confirms and cancels updates");
@@ -29,7 +30,7 @@ class DesktopArchitectureTest {
     @ArchTest
     static final ArchRule storeDoesNotCallTheCore = noClasses().that().resideInAPackage("hopsync.desktop.store..")
         .should().dependOnClassesThat().resideInAnyPackage("hopsync.core.session..", "hopsync.core.usecase..",
-            "hopsync.desktop.effects..", "hopsync.desktop.ui..")
+            "hopsync.desktop.effects..", "hopsync.desktop.ui..", "hopsync.desktop.screens..")
         .because("side effects belong to Effects, drawing to the screens");
 
     @ArchTest

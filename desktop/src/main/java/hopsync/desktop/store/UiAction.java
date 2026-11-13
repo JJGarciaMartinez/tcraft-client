@@ -25,7 +25,8 @@ public sealed interface UiAction {
 
     record InstalledModsLoaded(String packId, List<String> files) implements UiAction {}
 
-    record PackInfoLoaded(String packId, PackInfo info) implements UiAction {}
+    /** @param modCount mods in the manifest the info came from */
+    record PackInfoLoaded(String packId, PackInfo info, int modCount) implements UiAction {}
 
     record PackInfoFailed(String packId, SyncFailure failure) implements UiAction {}
 
@@ -33,19 +34,44 @@ public sealed interface UiAction {
 
     record CheckPack(String packId) implements UiAction {}
 
+    /** Checks every pack that is not already busy. */
+    record CheckAll() implements UiAction {}
+
     record ConfirmPlan(String packId) implements UiAction {}
 
     record DismissPlan(String packId) implements UiAction {}
 
+    /** Stops the check or apply, or takes the pack out of the apply queue. */
     record CancelUpdate(String packId) implements UiAction {}
 
     record ReloadInstalled(String packId) implements UiAction {}
 
+    record OpenFolder(String packId) implements UiAction {}
+
+    record CopyServerIp(String packId) implements UiAction {}
+
+    record CopyPackLink(String packId) implements UiAction {}
+
+    /** Forgets the pack after the player confirmed; its files stay where they are. */
+    record RemovePack(String packId) implements UiAction {}
+
     // Dialogs
 
+    /** Settings of the selected pack (or the first-run settings when there are no packs). */
     record OpenSettings() implements UiAction {}
 
-    record SettingsClosed(boolean saved) implements UiAction {}
+    record AddPack() implements UiAction {}
+
+    /** Asks the player to confirm removing the selected pack. */
+    record AskRemovePack() implements UiAction {}
+
+    record OpenAbout() implements UiAction {}
+
+    /** @param changed the dialog saved something, so the packs must be reloaded */
+    record SheetClosed(boolean changed) implements UiAction {}
+
+    /** A short notice at the bottom of the window. */
+    record ShowToast(String text) implements UiAction {}
 
     // Navigation, only UI state
 

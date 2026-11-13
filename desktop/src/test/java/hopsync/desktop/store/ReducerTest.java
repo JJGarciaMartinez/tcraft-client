@@ -92,19 +92,22 @@ class ReducerTest {
     @Test
     void installedModsAndPackInfoArriveForTheirPack() {
         UiState state = reduce(loaded(), new UiAction.InstalledModsLoaded(O, List.of("a.jar")),
-            new UiAction.PackInfoLoaded(D, INFO));
+            new UiAction.PackInfoLoaded(D, INFO, 77));
 
         assertEquals(List.of("a.jar"), other(state).installed());
         assertEquals(List.of(), demo(state).installed());
         assertEquals(INFO, demo(state).packInfo());
+        assertEquals(77, demo(state).modCount());
+        assertEquals("Demo", demo(state).displayName());
     }
 
     @Test
     void packInfoFailureReplacesTheInfo() {
         SyncFailure offline = new SyncFailure.Network("example.org", "timeout");
-        UiState state = reduce(loaded(), new UiAction.PackInfoLoaded(D, INFO), new UiAction.PackInfoFailed(D, offline));
+        UiState state = reduce(loaded(), new UiAction.PackInfoLoaded(D, INFO, 77), new UiAction.PackInfoFailed(D, offline));
 
         assertNull(demo(state).packInfo());
+        assertEquals(77, demo(state).modCount(), "the count from the last manifest stays until a new one");
         assertEquals(offline, demo(state).packInfoError());
     }
 
@@ -123,14 +126,15 @@ class ReducerTest {
     }
 
     @Test
-    void planReadyForTheSelectedPackOpensTheReview() {
+    void planReadyIsReviewedInTheHeaderWithoutADialog() {
         UiState state = reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()));
 
         assertEquals(PackPhase.REVIEW, demo(state).phase());
         assertEquals(plan(), demo(state).plan());
         assertEquals(INFO, demo(state).packInfo());
+        assertEquals(3, demo(state).modCount());
         assertEquals(NOW, demo(state).lastChecked());
-        assertEquals(Sheet.REVIEW, state.sheet());
+        assertEquals(Sheet.NONE, state.sheet());
     }
 
     @Test
@@ -152,30 +156,18 @@ class ReducerTest {
     }
 
     @Test
-    void confirmingClosesTheReview() {
+    void confirmingOrDismissingWaitsForTheCore() {
         UiState review = reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()));
 
-        UiState state = reduce(review, new UiAction.ConfirmPlan(D));
-
-        assertEquals(Sheet.NONE, state.sheet());
-        assertEquals(PackPhase.REVIEW, demo(state).phase(), "the phase follows the core, not the click");
+        assertSame(review, Reducer.reduce(review, new UiAction.ConfirmPlan(D)), "the phase follows the core, not the click");
+        assertSame(review, Reducer.reduce(review, new UiAction.DismissPlan(D)));
     }
 
     @Test
-    void dismissingClosesTheReview() {
+    void cancelledWhileReviewingEndsCancelled() {
         UiState review = reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()));
 
-        assertEquals(Sheet.NONE, reduce(review, new UiAction.DismissPlan(D)).sheet());
-    }
-
-    @Test
-    void cancelledWhileReviewingClosesTheReview() {
-        UiState review = reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()));
-
-        UiState state = reduce(review, new SyncEvent.UpdateCancelled(D));
-
-        assertEquals(PackPhase.CANCELLED, demo(state).phase());
-        assertEquals(Sheet.NONE, state.sheet());
+        assertEquals(PackPhase.CANCELLED, demo(reduce(review, new SyncEvent.UpdateCancelled(D))).phase());
     }
 
     // Queue and apply
@@ -299,17 +291,52 @@ class ReducerTest {
     void closingSettingsClosesTheSheet() {
         UiState open = reduce(loaded(), new UiAction.OpenSettings());
 
-        assertEquals(Sheet.NONE, reduce(open, new UiAction.SettingsClosed(false)).sheet());
+        assertEquals(Sheet.NONE, reduce(open, new UiAction.SheetClosed(false)).sheet());
     }
 
     @Test
     void cancellingTheFirstRunDoesNotReopenIt() {
         UiState firstRun = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(), null));
 
-        UiState state = reduce(firstRun, new UiAction.SettingsClosed(false));
+        UiState state = reduce(firstRun, new UiAction.SheetClosed(false));
 
         assertEquals(Sheet.NONE, state.sheet());
         assertEquals(Sheet.SETTINGS_FIRST_RUN, reduce(state, new UiAction.OpenSettings()).sheet());
+    }
+
+    @Test
+    void addingAPackIsAlwaysPossible() {
+        assertEquals(Sheet.ADD_PACK, reduce(applying(), new UiAction.AddPack()).sheet());
+    }
+
+    @Test
+    void removingAsksFirstAndNotWhileThePackIsBusy() {
+        assertEquals(Sheet.REMOVE_PACK, reduce(loaded(), new UiAction.AskRemovePack()).sheet());
+        assertEquals(Sheet.NONE, reduce(applying(), new UiAction.AskRemovePack()).sheet());
+        assertEquals(Sheet.NONE, reduce(UiState.INITIAL, new UiAction.AskRemovePack()).sheet());
+    }
+
+    @Test
+    void aboutOpens() {
+        assertEquals(Sheet.ABOUT, reduce(loaded(), new UiAction.OpenAbout()).sheet());
+    }
+
+    @Test
+    void everyToastIsNewEvenWithTheSameText() {
+        UiState once = reduce(loaded(), new UiAction.ShowToast("IP copiada"));
+        UiState twice = reduce(once, new UiAction.ShowToast("IP copiada"));
+
+        assertEquals("IP copiada", twice.toast().text());
+        assertTrue(twice.toast().id() > once.toast().id());
+    }
+
+    @Test
+    void theApplyingPackIsKnownToTheOthers() {
+        UiState state = applying();
+
+        assertTrue(state.anotherPackApplying(O));
+        assertTrue(!state.anotherPackApplying(D));
+        assertEquals(D, state.applyingPack().orElseThrow().packId());
     }
 
     @Test
@@ -348,5 +375,10 @@ class ReducerTest {
         assertSame(state, Reducer.reduce(state, new UiAction.CheckPack(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.CancelUpdate(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.ReloadInstalled(D)));
+        assertSame(state, Reducer.reduce(state, new UiAction.CheckAll()));
+        assertSame(state, Reducer.reduce(state, new UiAction.OpenFolder(D)));
+        assertSame(state, Reducer.reduce(state, new UiAction.CopyServerIp(D)));
+        assertSame(state, Reducer.reduce(state, new UiAction.CopyPackLink(D)));
+        assertSame(state, Reducer.reduce(state, new UiAction.RemovePack(D)));
     }
 }
