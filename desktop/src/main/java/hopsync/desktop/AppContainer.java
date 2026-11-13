@@ -12,6 +12,7 @@ import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.settings.SettingsStore;
 
 import java.nio.file.Path;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -68,6 +69,11 @@ public final class AppContainer {
 
     public ManifestService manifestService() {
         return manifestService;
+    }
+
+    /** Virtual threads for background work: checks, applies, listing files, fetching manifests. */
+    public Executor backgroundExecutor() {
+        return backgroundExecutor;
     }
 
     /** Manifest suggested to new players, from app.properties (may be empty). */

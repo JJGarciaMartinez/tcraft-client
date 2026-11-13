@@ -1,12 +1,12 @@
 package hopsync;
 
 import hopsync.desktop.AppContainer;
+import hopsync.desktop.UiStartup;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.logging.Logging;
 import hopsync.desktop.ui.DisplayScaling;
-import hopsync.desktop.ui.UIController;
 import hopsync.platform.settings.SettingsStore;
 import hopsync.platform.system.InstanceLock;
 
@@ -46,7 +46,7 @@ public class Main {
         LOG.log(System.Logger.Level.INFO, "Starting HopSync " + AppVersion.VERSION_APP + " on Java "
             + System.getProperty("java.version") + ", " + System.getProperty("os.name"));
         AppContainer container = AppContainer.forCurrentUser();
-        SwingUtilities.invokeLater(() -> UIController.create(container));
+        SwingUtilities.invokeLater(() -> UiStartup.start(container));
     }
 
     /**
