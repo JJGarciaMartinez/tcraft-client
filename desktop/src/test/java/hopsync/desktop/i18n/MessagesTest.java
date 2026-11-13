@@ -65,10 +65,10 @@ class MessagesTest {
 
     @Test
     void pluralsAndAccents() {
-        assertEquals("Completado con 1 error", Messages.get("status.completedWithErrors", 1));
-        assertEquals("Completado con 3 errores", Messages.get("status.completedWithErrors", 3));
-        assertEquals("0 mods instalados", Messages.get("mods.installedCount", 0));
-        assertEquals("1 mod instalado", Messages.get("mods.installedCount", 1));
-        assertEquals("¡Actualización completada!", Messages.get("status.completed"));
+        assertEquals("Aplicado con 1 error", Messages.get("hero.state.doneWithErrors", 1));
+        assertEquals("Aplicado con 3 errores", Messages.get("hero.state.doneWithErrors", 3));
+        assertEquals("1 mod ya está al día · Ver todos", Messages.get("mods.upToDateMore", 1));
+        assertEquals("70 mods ya están al día · Ver todos", Messages.get("mods.upToDateMore", 70));
+        assertEquals("Comparando con el pack…", Messages.get("hero.state.checking"));
     }
 }

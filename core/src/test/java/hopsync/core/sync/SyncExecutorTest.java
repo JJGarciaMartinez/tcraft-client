@@ -112,6 +112,7 @@ class SyncExecutorTest {
         assertEquals(Fixtures.CONTENT_HASH, state.contentHash());
         assertEquals(Set.of("keep.jar", "upd.jar", "new.jar"), state.mods().keySet());
         assertEquals(Fixtures.sha512("new"), state.mods().get("upd.jar").sha512());
+        assertEquals("1.0", state.mods().get("new.jar").version(), "installed files record their version");
         assertEquals(Set.of("sub/c.toml"), state.configs().keySet());
         assertTrue(events.contains("removed removed.jar"));
         assertTrue(events.contains("progress 100"));

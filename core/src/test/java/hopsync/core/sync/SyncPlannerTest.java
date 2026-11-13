@@ -72,6 +72,7 @@ class SyncPlannerTest {
 
         assertEquals(ModChange.UP_TO_DATE, changeOf(plan, "a.jar"));
         assertTrue(plan.keptMods().containsKey("a.jar"));
+        assertEquals("1.0", plan.keptMods().get("a.jar").version(), "an up-to-date file has the manifest's version");
         assertTrue(plan.isUpToDate());
     }
 

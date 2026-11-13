@@ -1,6 +1,7 @@
 package hopsync.desktop.store;
 
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -10,13 +11,13 @@ import java.util.Optional;
  *
  * @param packs          by pack id, in the order the player added them
  * @param selectedPackId the pack shown in the main area, or {@code null} when there are no packs
- * @param query          search text of the mod list, never {@code null}
+ * @param queries        search text of the mod list, per tab
  * @param expandedRow    file of the expanded mod row, or {@code null}
  * @param sheet          the dialog or sheet open on top of the window
  * @param toast          the last short notice shown, or {@code null}
  */
-public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab tab, Filter filter, String query,
-                      String expandedRow, Sheet sheet, Toast toast) {
+public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab tab, Filter filter,
+                      Map<Tab, String> queries, String expandedRow, Sheet sheet, Toast toast) {
 
     public enum Tab { PACK, OWN_MODS, CONFIGS }
 
@@ -29,11 +30,17 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     public record Toast(String text, long id) {
     }
 
-    public static final UiState INITIAL = new UiState(Map.of(), null, Tab.PACK, Filter.ALL, "", null, Sheet.NONE, null);
+    public static final UiState INITIAL = new UiState(Map.of(), null, Tab.PACK, Filter.CHANGES, Map.of(), null,
+        Sheet.NONE, null);
 
     public UiState {
         packs = Collections.unmodifiableMap(new LinkedHashMap<>(packs));
-        query = query == null ? "" : query;
+        queries = Map.copyOf(queries);
+    }
+
+    /** Search text of the current tab, never {@code null}. */
+    public String query() {
+        return queries.getOrDefault(tab, "");
     }
 
     public Optional<PackUiState> selected() {
@@ -41,7 +48,7 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     }
 
     UiState withPacks(Map<String, PackUiState> newPacks, String newSelected) {
-        return new UiState(newPacks, newSelected, tab, filter, query, expandedRow, sheet, toast);
+        return new UiState(newPacks, newSelected, tab, filter, queries, expandedRow, sheet, toast);
     }
 
     UiState withPack(PackUiState pack) {
@@ -51,27 +58,30 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     }
 
     UiState withSelected(String packId) {
-        return new UiState(packs, packId, tab, filter, query, null, sheet, toast);
+        return new UiState(packs, packId, tab, filter, queries, null, sheet, toast);
     }
 
     UiState withTab(Tab newTab) {
-        return new UiState(packs, selectedPackId, newTab, filter, query, expandedRow, sheet, toast);
+        return new UiState(packs, selectedPackId, newTab, filter, queries, expandedRow, sheet, toast);
     }
 
     UiState withFilter(Filter newFilter) {
-        return new UiState(packs, selectedPackId, tab, newFilter, query, expandedRow, sheet, toast);
+        return new UiState(packs, selectedPackId, tab, newFilter, queries, expandedRow, sheet, toast);
     }
 
     UiState withQuery(String newQuery) {
-        return new UiState(packs, selectedPackId, tab, filter, newQuery, expandedRow, sheet, toast);
+        Map<Tab, String> next = new EnumMap<>(Tab.class);
+        next.putAll(queries);
+        next.put(tab, newQuery == null ? "" : newQuery);
+        return new UiState(packs, selectedPackId, tab, filter, next, expandedRow, sheet, toast);
     }
 
     UiState withExpandedRow(String file) {
-        return new UiState(packs, selectedPackId, tab, filter, query, file, sheet, toast);
+        return new UiState(packs, selectedPackId, tab, filter, queries, file, sheet, toast);
     }
 
     UiState withToast(String text) {
-        return new UiState(packs, selectedPackId, tab, filter, query, expandedRow, sheet,
+        return new UiState(packs, selectedPackId, tab, filter, queries, expandedRow, sheet,
             new Toast(text, toast == null ? 1 : toast.id() + 1));
     }
 
@@ -85,6 +95,6 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     }
 
     UiState withSheet(Sheet newSheet) {
-        return new UiState(packs, selectedPackId, tab, filter, query, expandedRow, newSheet, toast);
+        return new UiState(packs, selectedPackId, tab, filter, queries, expandedRow, newSheet, toast);
     }
 }

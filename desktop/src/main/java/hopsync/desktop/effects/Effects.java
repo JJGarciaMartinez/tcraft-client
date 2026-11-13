@@ -6,18 +6,19 @@ import hopsync.core.failure.SyncFailures;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
-import hopsync.core.port.ManifestSource;
 import hopsync.core.session.PackSessions;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.Store;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
+import hopsync.platform.manifest.ManifestService;
 
 import java.awt.Desktop;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
+import java.net.URI;
 import java.time.Clock;
 import java.util.Optional;
 import java.util.concurrent.Executor;
@@ -33,12 +34,12 @@ public final class Effects {
     private final Store store;
     private final PackRegistry registry;
     private final PackSessions sessions;
-    private final ManifestSource manifests;
+    private final ManifestService manifests;
     private final ModLoadService modLoadService;
     private final Executor background;
     private final Clock clock;
 
-    public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestSource manifests,
+    public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
                    ModLoadService modLoadService, Executor background, Clock clock) {
         this.store = store;
         this.registry = registry;
@@ -69,7 +70,7 @@ public final class Effects {
             case UiAction.SelectPack a -> {
                 remember(a.packId());
                 loadInstalled(a.packId());
-                loadPackInfo(a.packId());
+                loadManifest(a.packId());
             }
             case UiAction.OpenFolder a -> openFolder(a.packId());
             case UiAction.CopyServerIp a -> Optional.ofNullable(state.packs().get(a.packId()))
@@ -79,6 +80,7 @@ public final class Effects {
             case UiAction.CopyPackLink a -> registry.find(a.packId())
                 .ifPresent(pack -> copy(pack.manifestUrl(), Messages.get("toast.linkCopied")));
             case UiAction.RemovePack a -> removePack(a.packId(), state);
+            case UiAction.OpenModPage a -> openModPage(a.url());
             case UiAction.SheetClosed a when a.changed() -> reloadPacks();
             case UiAction.SyncEventReceived a when finishesUpdate(a.event()) ->
                 // Back to what is on disk once the worker has stopped
@@ -97,7 +99,7 @@ public final class Effects {
         store.dispatch(new UiAction.PacksLoaded(registry.packs(), active.map(Pack::id).orElse(null)));
         active.ifPresent(pack -> {
             loadInstalled(pack.id());
-            loadPackInfo(pack.id());
+            loadManifest(pack.id());
         });
     }
 
@@ -113,8 +115,12 @@ public final class Effects {
     private void removePack(String packId, UiState state) {
         String name = Optional.ofNullable(state.packs().get(packId)).map(PackUiState::displayName).orElse(packId);
         sessions.drop(packId);
+        Optional<String> link = registry.find(packId).map(Pack::manifestUrl);
         try {
             registry.remove(packId);
+            // The cached manifest is HopSync's own file, unless another pack still uses the same link
+            link.filter(url -> registry.packs().stream().noneMatch(other -> other.manifestUrl().equals(url)))
+                .ifPresent(manifests::forget);
             store.dispatch(new UiAction.ShowToast(Messages.get("toast.removed", name)));
         } catch (IOException e) {
             LOG.log(System.Logger.Level.WARNING, "Could not remove pack " + packId, e);
@@ -145,23 +151,40 @@ public final class Effects {
     private void loadInstalled(String packId) {
         registry.find(packId).ifPresent(pack -> background.execute(() -> {
             try {
-                store.dispatch(new UiAction.InstalledModsLoaded(packId,
-                    modLoadService.loadCurrentMods(pack.paths().mods())));
+                store.dispatch(new UiAction.InstalledModsLoaded(packId, modLoadService.load(pack.paths())));
             } catch (RuntimeException e) {
                 LOG.log(System.Logger.Level.WARNING, "Could not list installed mods of pack " + packId, e);
             }
         }));
     }
 
-    private void loadPackInfo(String packId) {
+    /** The cached manifest first, so the list shows right away, then the current one from the network. */
+    private void loadManifest(String packId) {
         registry.find(packId).ifPresent(pack -> background.execute(() -> {
+            manifests.cached(pack.manifestUrl())
+                .ifPresent(cached -> store.dispatch(new UiAction.ManifestLoaded(packId, cached)));
             try {
                 Manifest manifest = manifests.fetchManifest(pack.manifestUrl());
                 registry.rememberName(packId, manifest.pack().name());
-                store.dispatch(new UiAction.PackInfoLoaded(packId, manifest.pack(), manifest.mods().size()));
+                store.dispatch(new UiAction.ManifestLoaded(packId, manifest));
             } catch (Exception e) {
-                store.dispatch(new UiAction.PackInfoFailed(packId, SyncFailures.from(e, "")));
+                store.dispatch(new UiAction.ManifestFailed(packId, SyncFailures.from(e, "")));
             }
         }));
+    }
+
+    private void openModPage(String url) {
+        if (url == null || !url.startsWith("https://")) return;
+        background.execute(() -> {
+            try {
+                if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                    throw new IOException("opening links is not supported here");
+                }
+                Desktop.getDesktop().browse(URI.create(url));
+            } catch (IOException | RuntimeException e) {
+                LOG.log(System.Logger.Level.WARNING, "Could not open " + url, e);
+                store.dispatch(new UiAction.ShowToast(Messages.get("toast.linkFailed")));
+            }
+        });
     }
 }

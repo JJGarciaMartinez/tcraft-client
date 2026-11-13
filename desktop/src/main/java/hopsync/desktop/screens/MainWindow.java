@@ -4,7 +4,7 @@ import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.screens.library.PackLibrary;
-import hopsync.desktop.screens.pack.LegacyModList;
+import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
@@ -31,7 +31,7 @@ public final class MainWindow extends JFrame {
     private final JPanel body = new JPanel(cards);
     private final PackLibrary library;
     private final PackHero hero;
-    private final LegacyModList mods = new LegacyModList();
+    private final ModsPanel mods;
     private final StatusBar statusBar;
     private final Toast toast;
     private final Sheets sheets;
@@ -42,13 +42,14 @@ public final class MainWindow extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         library = new PackLibrary(dispatch);
         hero = new PackHero(dispatch, zone);
+        mods = new ModsPanel(dispatch);
         statusBar = new StatusBar(zone);
         sheets = new Sheets(this, dispatch, settings, settingsFile);
 
         JPanel packArea = new JPanel(new BorderLayout());
         packArea.setBackground(Palette.background());
         packArea.add(hero, BorderLayout.NORTH);
-        packArea.add(mods.component(), BorderLayout.CENTER);
+        packArea.add(mods, BorderLayout.CENTER);
         JPanel main = new JPanel(new BorderLayout());
         main.add(library, BorderLayout.WEST);
         main.add(packArea, BorderLayout.CENTER);
@@ -78,7 +79,7 @@ public final class MainWindow extends JFrame {
         library.render(state);
         if (pack != null) {
             hero.render(pack, state);
-            mods.render(pack);
+            mods.render(pack, state);
         }
         statusBar.render(pack);
         toast.render(state.toast());

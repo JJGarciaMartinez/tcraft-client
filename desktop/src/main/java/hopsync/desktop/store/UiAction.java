@@ -2,7 +2,7 @@ package hopsync.desktop.store;
 
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
-import hopsync.core.manifest.PackInfo;
+import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 
 import java.time.Instant;
@@ -23,12 +23,12 @@ public sealed interface UiAction {
     /** The packs in the registry, after startup or after the settings changed. */
     record PacksLoaded(List<Pack> packs, String activeId) implements UiAction {}
 
-    record InstalledModsLoaded(String packId, List<String> files) implements UiAction {}
+    record InstalledModsLoaded(String packId, InstalledMods mods) implements UiAction {}
 
-    /** @param modCount mods in the manifest the info came from */
-    record PackInfoLoaded(String packId, PackInfo info, int modCount) implements UiAction {}
+    /** The pack's manifest, from the cache at startup and then from the network. */
+    record ManifestLoaded(String packId, Manifest manifest) implements UiAction {}
 
-    record PackInfoFailed(String packId, SyncFailure failure) implements UiAction {}
+    record ManifestFailed(String packId, SyncFailure failure) implements UiAction {}
 
     // What the player does with a pack
 
@@ -51,6 +51,9 @@ public sealed interface UiAction {
     record CopyServerIp(String packId) implements UiAction {}
 
     record CopyPackLink(String packId) implements UiAction {}
+
+    /** Opens a mod's page (Modrinth or the pack's repository) in the browser. */
+    record OpenModPage(String url) implements UiAction {}
 
     /** Forgets the pack after the player confirmed; its files stay where they are. */
     record RemovePack(String packId) implements UiAction {}

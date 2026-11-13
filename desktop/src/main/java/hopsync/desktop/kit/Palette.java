@@ -25,6 +25,10 @@ public final class Palette {
     public static Color statusBar() { return color("HopSync.statusBar", 0x0F1113); }
     /** Face of raised elements that are not buttons, such as the selected pack. */
     public static Color raised() { return color("HopSync.raised", 0x2A2F33); }
+    /** Background of the list row under the mouse or expanded. */
+    public static Color rowHover() { return color("HopSync.rowHover", 0x1F2326); }
+    /** Background of a row's expanded details. */
+    public static Color rowDetail() { return color("HopSync.rowDetail", 0x1A1D20); }
 
     public static Color text() { return color("HopSync.text", 0xECEEEB); }
     public static Color textSecondary() { return color("HopSync.textSecondary", 0x9AA1A6); }

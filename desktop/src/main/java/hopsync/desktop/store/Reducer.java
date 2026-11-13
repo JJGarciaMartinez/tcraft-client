@@ -27,11 +27,11 @@ public final class Reducer {
         return switch (action) {
             case UiAction.SyncEventReceived a -> onSyncEvent(state, a.event(), a.at());
             case UiAction.PacksLoaded a -> onPacksLoaded(state, a);
-            case UiAction.InstalledModsLoaded a -> updatePack(state, a.packId(), pack -> pack.withInstalled(a.files()));
-            case UiAction.PackInfoLoaded a -> updatePack(state, a.packId(),
-                pack -> pack.withPackInfo(a.info(), a.modCount(), null));
-            case UiAction.PackInfoFailed a -> updatePack(state, a.packId(),
-                pack -> pack.withPackInfo(null, pack.modCount(), a.failure()));
+            case UiAction.InstalledModsLoaded a -> updatePack(state, a.packId(), pack -> pack.withInstalled(a.mods()));
+            case UiAction.ManifestLoaded a -> updatePack(state, a.packId(), pack -> pack.withManifest(a.manifest(), null));
+            // The last known manifest (maybe cached) keeps the list on screen; the header shows the failure
+            case UiAction.ManifestFailed a -> updatePack(state, a.packId(),
+                pack -> pack.withManifest(pack.manifest(), a.failure()));
             // Commands handled by Effects; the state follows from the core events they cause
             case UiAction.CheckPack a -> state;
             case UiAction.CheckAll a -> state;
@@ -42,6 +42,7 @@ public final class Reducer {
             case UiAction.OpenFolder a -> state;
             case UiAction.CopyServerIp a -> state;
             case UiAction.CopyPackLink a -> state;
+            case UiAction.OpenModPage a -> state;
             case UiAction.RemovePack a -> state;
             case UiAction.OpenSettings a -> openForSelectedPack(state,
                 state.packs().isEmpty() ? Sheet.SETTINGS_FIRST_RUN : Sheet.SETTINGS);
@@ -51,7 +52,8 @@ public final class Reducer {
             case UiAction.OpenAbout a -> state.withSheet(Sheet.ABOUT);
             case UiAction.SheetClosed a -> state.withSheet(Sheet.NONE);
             case UiAction.ShowToast a -> state.withToast(a.text());
-            case UiAction.SelectPack a -> state.packs().containsKey(a.packId()) ? state.withSelected(a.packId()) : state;
+            case UiAction.SelectPack a -> state.packs().containsKey(a.packId())
+                ? state.withSelected(a.packId()).withFilter(UiState.Filter.CHANGES) : state;
             case UiAction.SelectTab a -> state.withTab(a.tab());
             case UiAction.SetFilter a -> state.withFilter(a.filter());
             case UiAction.SetQuery a -> state.withQuery(a.query());
@@ -65,7 +67,12 @@ public final class Reducer {
             // A pack removed while its last events were still on the way
             return state;
         }
-        return state.withPack(onPackEvent(pack, event, at));
+        UiState next = state.withPack(onPackEvent(pack, event, at));
+        if (event instanceof SyncEvent.PlanReady && event.packId().equals(state.selectedPackId())) {
+            // A new plan opens on what will change
+            return next.withFilter(UiState.Filter.CHANGES);
+        }
+        return next;
     }
 
     private static PackUiState onPackEvent(PackUiState pack, SyncEvent event, Instant at) {

@@ -90,25 +90,43 @@ class ReducerTest {
     }
 
     @Test
-    void installedModsAndPackInfoArriveForTheirPack() {
-        UiState state = reduce(loaded(), new UiAction.InstalledModsLoaded(O, List.of("a.jar")),
-            new UiAction.PackInfoLoaded(D, INFO, 77));
+    void installedModsAndTheManifestArriveForTheirPack() {
+        UiState state = reduce(loaded(), new UiAction.InstalledModsLoaded(O, InstalledMods.of(List.of("a.jar"))),
+            new UiAction.ManifestLoaded(D, StoreFixtures.manifest()));
 
-        assertEquals(List.of("a.jar"), other(state).installed());
-        assertEquals(List.of(), demo(state).installed());
+        assertEquals(List.of("a.jar"), other(state).installed().jars());
+        assertEquals(InstalledMods.NONE, demo(state).installed());
         assertEquals(INFO, demo(state).packInfo());
-        assertEquals(77, demo(state).modCount());
+        assertEquals(3, demo(state).modCount());
         assertEquals("Demo", demo(state).displayName());
     }
 
     @Test
-    void packInfoFailureReplacesTheInfo() {
+    void manifestFailureKeepsTheLastKnownManifest() {
         SyncFailure offline = new SyncFailure.Network("example.org", "timeout");
-        UiState state = reduce(loaded(), new UiAction.PackInfoLoaded(D, INFO, 77), new UiAction.PackInfoFailed(D, offline));
+        UiState state = reduce(loaded(), new UiAction.ManifestLoaded(D, StoreFixtures.manifest()),
+            new UiAction.ManifestFailed(D, offline));
 
-        assertNull(demo(state).packInfo());
-        assertEquals(77, demo(state).modCount(), "the count from the last manifest stays until a new one");
-        assertEquals(offline, demo(state).packInfoError());
+        assertEquals(INFO, demo(state).packInfo(), "a cached manifest keeps the list on screen while offline");
+        assertEquals(offline, demo(state).manifestError());
+    }
+
+    @Test
+    void eachTabKeepsItsOwnSearch() {
+        UiState state = reduce(loaded(), new UiAction.SetQuery("sod"), new UiAction.SelectTab(UiState.Tab.OWN_MODS),
+            new UiAction.SetQuery("mine"));
+
+        assertEquals("mine", state.query());
+        assertEquals("sod", reduce(state, new UiAction.SelectTab(UiState.Tab.PACK)).query());
+    }
+
+    @Test
+    void aNewPlanForTheSelectedPackShowsOnlyTheChanges() {
+        UiState all = reduce(loaded(), new UiAction.SetFilter(UiState.Filter.ALL));
+
+        UiState state = reduce(all, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()));
+
+        assertEquals(UiState.Filter.CHANGES, state.filter());
     }
 
     // Check and review
@@ -379,6 +397,7 @@ class ReducerTest {
         assertSame(state, Reducer.reduce(state, new UiAction.OpenFolder(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.CopyServerIp(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.CopyPackLink(D)));
+        assertSame(state, Reducer.reduce(state, new UiAction.OpenModPage("https://modrinth.com/project/x")));
         assertSame(state, Reducer.reduce(state, new UiAction.RemovePack(D)));
     }
 }

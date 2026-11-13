@@ -26,7 +26,7 @@ public final class FileHasher {
         if (known != null && known.size() == size && known.modifiedMillis() == modified) {
             return known;
         }
-        return new FileRecord(sha512(file), size, modified);
+        return new FileRecord(sha512(file), size, modified, known == null ? null : known.version());
     }
 
     public static String sha512(Path file) throws IOException {

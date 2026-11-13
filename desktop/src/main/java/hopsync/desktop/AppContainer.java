@@ -37,7 +37,7 @@ public final class AppContainer {
         this.settingsStore = settingsStore;
         packRegistry = new PackRegistry(settingsStore);
         DownloadService downloadService = new DownloadService(config.network());
-        manifestService = new ManifestService(downloadService);
+        manifestService = new ManifestService(downloadService, settingsStore.getFile().resolveSibling("manifests"));
         ModUpdateService modUpdateService = new ModUpdateService(manifestService, downloadService,
             packRegistry::parallelDownloads);
         ApplyQueue applyQueue = new ApplyQueue(backgroundExecutor, packRegistry::chainQueue);

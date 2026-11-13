@@ -50,6 +50,11 @@ public final class StoreFixtures {
             Map.of(), Map.of());
     }
 
+    /** The manifest of {@link #plan()}: new.jar, upd.jar and kept.jar. */
+    public static Manifest manifest() {
+        return plan().manifest();
+    }
+
     /** Both packs loaded, DEMO selected. */
     public static UiState loaded() {
         return Reducer.reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(DEMO, OTHER), DEMO.id()));

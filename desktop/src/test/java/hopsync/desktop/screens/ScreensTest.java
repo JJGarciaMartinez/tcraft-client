@@ -4,7 +4,9 @@ import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.screens.library.PackLibrary;
+import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
+import hopsync.desktop.store.InstalledMods;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
@@ -20,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static hopsync.desktop.store.StoreFixtures.DEMO;
-import static hopsync.desktop.store.StoreFixtures.INFO;
+import static hopsync.desktop.store.StoreFixtures.manifest;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
 import static hopsync.desktop.store.StoreFixtures.loaded;
 import static hopsync.desktop.store.StoreFixtures.plan;
@@ -44,8 +46,8 @@ class ScreensTest {
 
     /** One state per phase of DEMO, with OTHER applying in the review one. */
     private static List<UiState> everyPhase() {
-        UiState base = reduce(loaded(), new UiAction.PackInfoLoaded(D, INFO, 77),
-            new UiAction.InstalledModsLoaded(D, List.of("a.jar")));
+        UiState base = reduce(loaded(), new UiAction.ManifestLoaded(D, manifest()),
+            new UiAction.InstalledModsLoaded(D, InstalledMods.of(List.of("a.jar", "kept.jar"))));
         return List.of(
             base,
             reduce(base, new SyncEvent.UpdateStarted(D)),
@@ -67,14 +69,21 @@ class ScreensTest {
         PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
         PackLibrary library = new PackLibrary(dispatched::add);
         StatusBar statusBar = new StatusBar(ZoneOffset.UTC);
-        for (UiState state : everyPhase()) {
-            PackUiState pack = state.selected().orElseThrow();
-            hero.render(pack, state);
-            library.render(state);
-            statusBar.render(pack);
-            paint(hero, 746, 134);
-            paint(library, 214, 560);
-            paint(statusBar, 960, 28);
+        ModsPanel mods = new ModsPanel(dispatched::add);
+        for (UiState phase : everyPhase()) {
+            for (UiState state : List.of(phase, reduce(phase, new UiAction.SetFilter(UiState.Filter.ALL),
+                    new UiAction.ToggleRow("kept.jar")), reduce(phase, new UiAction.SelectTab(UiState.Tab.OWN_MODS)),
+                    reduce(phase, new UiAction.SelectTab(UiState.Tab.CONFIGS)))) {
+                PackUiState pack = state.selected().orElseThrow();
+                hero.render(pack, state);
+                library.render(state);
+                statusBar.render(pack);
+                mods.render(pack, state);
+                paint(hero, 746, 134);
+                paint(library, 214, 560);
+                paint(statusBar, 960, 28);
+                paint(mods, 746, 420);
+            }
         }
         assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
     }

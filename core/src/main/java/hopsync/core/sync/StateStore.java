@@ -77,7 +77,9 @@ public class StateStore {
             records.put((String) entry.getKey(), new FileRecord(
                 (String) record.get("sha512"),
                 (Long) record.get("size"),
-                (Long) record.get("modified")
+                (Long) record.get("modified"),
+                // Absent in files written before versions were kept
+                (String) record.get("version")
             ));
         }
         return records;
@@ -90,6 +92,9 @@ public class StateStore {
             r.put("sha512", record.sha512());
             r.put("size", record.size());
             r.put("modified", record.modifiedMillis());
+            if (record.version() != null) {
+                r.put("version", record.version());
+            }
             out.put(key, r);
         });
         return out;
