@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.ColorFunctions;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
@@ -12,6 +13,7 @@ import hopsync.desktop.kit.StatusTag;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -26,9 +28,12 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagLayout;
 import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.LayoutManager;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.util.Locale;
 
 /**
@@ -105,6 +110,14 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
         };
     }
 
+    /** Where a mod row's status button is drawn, in cell coordinates, for hit-testing clicks. */
+    Rectangle statusBounds(ModRow.Mod row, int width) {
+        mod.show(row, false, false);
+        mod.setSize(width, mod.getPreferredSize().height);
+        layoutTree(mod);
+        return SwingUtilities.convertRectangle(mod.retry.getParent(), mod.retry.getBounds(), mod);
+    }
+
     /** Where the detail row's link is drawn, in cell coordinates, for hit-testing clicks. */
     Rectangle linkBounds(ModRow.Detail row, int width) {
         detail.show(row, false);
@@ -154,6 +167,8 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
         private final JLabel size = new JLabel();
         private final JPanel status = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         private final StatusTag tag = new StatusTag("", StatusTag.Tone.NEUTRAL);
+        private final MiniBar bar = new MiniBar();
+        final JButton retry = new JButton(Messages.get("mods.retry"));
         private final JLabel chevron = new JLabel();
 
         ModLine() {
@@ -168,7 +183,10 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             size.setForeground(Palette.textFaint());
             size.setHorizontalAlignment(JLabel.RIGHT);
             status.setOpaque(false);
+            ButtonStyle.apply(retry, ButtonStyle.SECONDARY, ButtonStyle.SMALL);
             status.add(tag);
+            status.add(bar);
+            status.add(retry);
             for (JComponent part : new JComponent[] {icon, name, version, author, size, status, chevron}) {
                 add(part);
             }
@@ -185,11 +203,14 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             author.setText(row.author());
             author.setForeground(row.look() == ModRow.Look.ERROR ? Palette.error() : Palette.textFaint());
             size.setText(row.size());
-            tag.setVisible(row.tag() != null);
+            tag.setVisible(row.tag() != null && row.progress() == null);
             if (row.tag() != null) {
                 tag.setText(row.tag().text());
                 tag.setTone(row.tag().tone());
             }
+            bar.setVisible(row.progress() != null);
+            bar.percent = row.progress() == null ? 0 : row.progress();
+            retry.setVisible(row.statusAction() != null);
             chevron.setIcon(row.expandable() && (hovered || expanded)
                 ? Icons.get(expanded ? Icons.Glyph.CHEVRON_DOWN : Icons.Glyph.CHEVRON, 14,
                     hovered ? Palette.text() : Palette.textFaint())
@@ -205,6 +226,31 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
         @Override
         public Dimension getPreferredSize() {
             return new Dimension(super.getPreferredSize().width, UIScale.scale(ROW_HEIGHT));
+        }
+    }
+
+    /** The download of one file: a small sunken track filling with the accent color. */
+    private static final class MiniBar extends JComponent {
+        int percent;
+
+        @Override
+        public Dimension getPreferredSize() {
+            return new Dimension(UIScale.scale(60), UIScale.scale(6));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            try {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int h = getHeight();
+                g2.setColor(Palette.well());
+                g2.fillRoundRect(0, 0, getWidth(), h, h, h);
+                g2.setColor(Palette.accent());
+                g2.fillRoundRect(0, 0, getWidth() * percent / 100, h, h, h);
+            } finally {
+                g2.dispose();
+            }
         }
     }
 

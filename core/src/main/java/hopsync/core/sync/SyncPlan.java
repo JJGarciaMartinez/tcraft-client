@@ -4,8 +4,10 @@ import hopsync.core.manifest.ConfigEntry;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Everything a sync will do, computed before touching any file so the player can review it.
@@ -66,6 +68,15 @@ public record SyncPlan(Manifest manifest, List<ModAction> mods, List<String> rem
     public long downloadBytes() {
         return modDownloads().stream().mapToLong(a -> a.mod().size()).sum()
             + configDownloads().stream().mapToLong(a -> a.config().size()).sum();
+    }
+
+    /** Every mod file and config path the plan would write or delete. */
+    public Set<String> pendingFiles() {
+        Set<String> files = new HashSet<>();
+        modDownloads().forEach(action -> files.add(action.mod().file()));
+        files.addAll(removals);
+        configDownloads().forEach(action -> files.add(action.config().path()));
+        return files;
     }
 
     public boolean isUpToDate() {

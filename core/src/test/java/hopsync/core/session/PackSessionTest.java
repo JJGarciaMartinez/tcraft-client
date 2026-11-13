@@ -25,9 +25,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -287,6 +289,59 @@ class PackSessionTest {
         release.countDown();
         next(SyncEvent.UpdateCompleted.class);
         assertFalse(Files.exists(otherGame.resolve("mods/a.jar")));
+    }
+
+    @Test
+    void retryingAppliesWithoutAskingWhenOnlyTheFailedFilesRemain() throws Exception {
+        ModEntry a = serve("a.jar", "A");
+        ModEntry b = serve("b.jar", "B");
+        served = manifest(List.of(a, b), List.of());
+        Set<String> failing = new CopyOnWriteArraySet<>(List.of(b.url()));
+        FileDownloader working = downloader;
+        downloader = (url, destination, sha512, size, onBytes, cancel) -> {
+            if (failing.contains(url)) throw new IOException("boom");
+            working.download(url, destination, sha512, size, onBytes, cancel);
+        };
+        coordinator.startUpdate();
+        next(SyncEvent.PlanReady.class);
+        coordinator.confirmPlan();
+        assertEquals(1, next(SyncEvent.UpdateCompleted.class).failCount());
+
+        failing.clear();
+        coordinator.continueUpdate(Set.of("b.jar"));
+
+        assertEquals(Set.of("b.jar"), next(SyncEvent.PlanReady.class).plan().pendingFiles());
+        SyncEvent.UpdateCompleted done = next(SyncEvent.UpdateCompleted.class);
+        assertEquals(1, done.successCount(), "only b.jar is downloaded again");
+        assertEquals("B", Files.readString(game.resolve("mods/b.jar")));
+    }
+
+    @Test
+    void continuingWaitsForReviewWhenThePackChangedMeanwhile() throws Exception {
+        served = manifest(List.of(serve("a.jar", "A")), List.of());
+        coordinator.continueUpdate(Set.of("other.jar"));
+
+        next(SyncEvent.PlanReady.class);
+        assertEquals(UpdateState.Phase.AWAITING_CONFIRMATION, coordinator.getPhase());
+        assertFalse(Files.exists(game.resolve("mods/a.jar")), "a change the player never saw waits for review");
+    }
+
+    @Test
+    void applyReportsFilesBytesAndEachModsProgress() throws Exception {
+        served = manifest(List.of(serve("a.jar", "AAAA"), serve("b.jar", "BB")), List.of());
+
+        coordinator.startUpdate();
+        next(SyncEvent.PlanReady.class);
+        coordinator.confirmPlan();
+        next(SyncEvent.UpdateCompleted.class);
+
+        SyncEvent.Progress last = all.stream().filter(SyncEvent.Progress.class::isInstance)
+            .map(SyncEvent.Progress.class::cast).reduce((first, second) -> second).orElseThrow();
+        assertEquals(2, last.doneFiles());
+        assertEquals(2, last.totalFiles());
+        assertEquals(6, last.bytesDone());
+        assertEquals(6, last.bytesTotal());
+        assertTrue(all.contains(new SyncEvent.ModProgress(pack.id(), "a.jar", 100)));
     }
 
     /** Blocks a fake download until the test releases it. */

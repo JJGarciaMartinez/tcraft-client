@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 
 import static hopsync.desktop.store.StoreFixtures.DEMO;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
@@ -92,14 +93,27 @@ class HeroModelTest {
     }
 
     @Test
-    void applyingShowsProgressAndADangerCancel() {
+    void applyingShowsFilesBytesSpeedAndTheModBeingDownloaded() {
         UiState state = reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()),
-            new SyncEvent.ApplyStarted(D), new SyncEvent.ModDownloading(D, "new.jar"), new SyncEvent.ProgressChanged(D, 40));
-        HeroModel model = hero(state, D);
+            new SyncEvent.ApplyStarted(D), new SyncEvent.ModDownloading(D, "new.jar"),
+            new SyncEvent.Progress(D, 1, 3, 3 * 1024 * 1024, 8 * 1024 * 1024, 2 * 1024 * 1024));
+        HeroModel.Applying applying = hero(state, D).applying();
 
-        assertEquals(40, model.percent());
-        assertEquals("new.jar", model.currentFile());
-        assertEquals(ButtonStyle.DANGER, model.actions().getFirst().style());
+        assertEquals(37, applying.percent());
+        assertEquals(Messages.get("hero.progress.files", 1, 3, "3.0 / 8.0 MB"), applying.files());
+        assertEquals(Messages.get("hero.progress.speed", "2.0 MB"), applying.speed());
+        assertEquals(Messages.get("hero.downloadingVersion", "new.jar", "1.0"), applying.current(),
+            "the mod's name and version, not its file");
+        assertEquals(ButtonStyle.DANGER, hero(state, D).actions().getFirst().style());
+    }
+
+    @Test
+    void speedIsHiddenUntilItIsKnown() {
+        UiState state = reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()),
+            new SyncEvent.ApplyStarted(D), new SyncEvent.Progress(D, 0, 3, 512, 8 * 1024 * 1024, 0));
+
+        assertEquals("", hero(state, D).applying().speed());
+        assertEquals(Messages.get("hero.progress.files", 0, 3, "0.0 / 8.0 MB"), hero(state, D).applying().files());
     }
 
     @Test
@@ -109,7 +123,7 @@ class HeroModelTest {
         assertEquals(StatusMark.Kind.OK, model.mark());
         assertEquals(Messages.get("hero.detail.checkedAt", "12:00"), model.detail());
         assertEquals(List.of(Messages.get("hero.checkAgain")), labels(model));
-        assertNull(model.percent());
+        assertNull(model.applying());
     }
 
     @Test
@@ -123,14 +137,28 @@ class HeroModelTest {
         assertEquals(StatusMark.Kind.WARN, model.mark());
         assertEquals(Messages.get("hero.state.doneWithErrors", 1), model.title());
         assertEquals(Messages.failure(locked), model.detail());
+        assertEquals(List.of(Messages.get("hero.retryDownloads", 1)), labels(model));
+        assertEquals(new UiAction.ContinueUpdate(D, Set.of("upd.jar")), model.actions().getFirst().action(),
+            "retries only what failed");
     }
 
     @Test
-    void cancelledOffersToContinue() {
+    void cancelledWhileCheckingOffersToCheckAgain() {
         HeroModel model = hero(reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.UpdateCancelled(D)), D);
 
         assertEquals(List.of(Messages.get("hero.continue")), labels(model));
         assertEquals(new UiAction.CheckPack(D), model.actions().getFirst().action());
+        assertEquals(Messages.get("hero.detail.pending"), model.detail());
+    }
+
+    @Test
+    void cancelledWhileApplyingSaysHowMuchWasDoneAndContinuesThePlan() {
+        UiState state = reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()),
+            new SyncEvent.ApplyStarted(D), new SyncEvent.Progress(D, 1, 3, 100, 200, 0), new SyncEvent.UpdateCancelled(D));
+        HeroModel model = hero(state, D);
+
+        assertEquals(Messages.get("hero.detail.cancelled", 1, 3), model.detail());
+        assertEquals(new UiAction.ContinueUpdate(D, plan().pendingFiles()), model.actions().getFirst().action());
     }
 
     @Test

@@ -135,6 +135,26 @@ class ModRowModelTest {
     }
 
     @Test
+    void theFileBeingDownloadedShowsItsOwnBar() {
+        ModRowModel model = model(reduce(reviewing(), new UiAction.ConfirmPlan(D), new SyncEvent.ApplyStarted(D),
+            new SyncEvent.ModDownloading(D, "new.jar"), new SyncEvent.ModProgress(D, "new.jar", 45)));
+
+        assertEquals(45, mod(model, "new.jar").progress());
+        assertNull(mod(model, "upd.jar").progress());
+    }
+
+    @Test
+    void failedFilesOfferToRetryOnceTheApplyIsOver() {
+        SyncFailure locked = new SyncFailure.FileLocked("upd.jar");
+        UiState applying = reduce(reviewing(), new UiAction.ConfirmPlan(D), new SyncEvent.ApplyStarted(D),
+            new SyncEvent.ModCompleted(D, "upd.jar", false, locked));
+        assertNull(mod(model(applying), "upd.jar").statusAction(), "no retry while the apply still runs");
+
+        UiState done = reduce(applying, new SyncEvent.UpdateCompleted(D, 1, 1));
+        assertEquals(new UiAction.ContinueUpdate(D, Set.of("upd.jar")), mod(model(done), "upd.jar").statusAction());
+    }
+
+    @Test
     void pendingDownloadsSayPending() {
         ModRowModel model = model(reduce(reviewing(), new UiAction.ConfirmPlan(D), new SyncEvent.ApplyStarted(D)));
 

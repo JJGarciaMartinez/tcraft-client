@@ -8,7 +8,8 @@ import hopsync.core.failure.SyncFailure;
 public sealed interface RowStatus {
     record Pending() implements RowStatus {}
 
-    record Downloading() implements RowStatus {}
+    /** @param percent of the file downloaded, in steps of 5 */
+    record Downloading(int percent) implements RowStatus {}
 
     record Done() implements RowStatus {}
 

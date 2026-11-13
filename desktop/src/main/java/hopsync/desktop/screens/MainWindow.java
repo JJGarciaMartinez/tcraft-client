@@ -11,12 +11,16 @@ import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.nio.file.Path;
 import java.time.ZoneId;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -36,10 +40,18 @@ public final class MainWindow extends JFrame {
     private final Toast toast;
     private final Sheets sheets;
     private String shownCard;
+    private UiState shown;
 
     public MainWindow(Consumer<UiAction> dispatch, Sheets.SettingsOpener settings, Path settingsFile, ZoneId zone) {
         super(Messages.get("window.titleEmpty"));
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        // Closing goes through the store, so a running apply can be confirmed and stopped first
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                requestClose(dispatch);
+            }
+        });
         library = new PackLibrary(dispatch);
         hero = new PackHero(dispatch, zone);
         mods = new ModsPanel(dispatch);
@@ -68,7 +80,24 @@ public final class MainWindow extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    /**
+     * Asks before closing while a pack is writing files; stopping is safe (what finished stays installed, the
+     * rest is pending), but the player should know. Cancelling an update from the window never asks.
+     */
+    private void requestClose(Consumer<UiAction> dispatch) {
+        Optional<PackUiState> applying = shown == null ? Optional.empty() : shown.applyingPack();
+        if (applying.isPresent()) {
+            Object[] options = {Messages.get("close.confirm"), Messages.get("close.cancel")};
+            int choice = JOptionPane.showOptionDialog(this,
+                Messages.get("close.message", applying.get().displayName()), Messages.get("close.title"),
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, null, options, options[1]);
+            if (choice != 0) return;
+        }
+        dispatch.accept(new UiAction.Quit());
+    }
+
     public void render(UiState state) {
+        shown = state;
         PackUiState pack = state.selected().orElse(null);
         String card = pack == null ? ONBOARDING : MAIN;
         if (!card.equals(shownCard)) {

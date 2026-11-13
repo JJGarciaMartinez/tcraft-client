@@ -38,6 +38,8 @@ public final class Reducer {
             case UiAction.ConfirmPlan a -> state;
             case UiAction.DismissPlan a -> state;
             case UiAction.CancelUpdate a -> state;
+            case UiAction.ContinueUpdate a -> state;
+            case UiAction.Quit a -> state;
             case UiAction.ReloadInstalled a -> state;
             case UiAction.OpenFolder a -> state;
             case UiAction.CopyServerIp a -> state;
@@ -84,17 +86,23 @@ public final class Reducer {
             case SyncEvent.Queued e -> pack.withPhase(PackPhase.QUEUED);
             case SyncEvent.ApplyStarted e -> pack.withPhase(PackPhase.APPLYING).withProgress(Progress.NONE)
                 .withRowStatus(pendingRows(pack.plan()));
-            case SyncEvent.ProgressChanged e -> pack.withProgress(new Progress(e.percent(), pack.progress().currentFile()));
-            case SyncEvent.ModDownloading e -> pack.withRowStatus(withRow(pack, e.file(), new RowStatus.Downloading()))
-                .withProgress(new Progress(pack.progress().percent(), e.file()));
+            case SyncEvent.Progress e -> pack.withProgress(new Progress(e.doneFiles(), e.totalFiles(), e.bytesDone(),
+                e.bytesTotal(), e.bytesPerSecond(), pack.progress().currentFile()));
+            case SyncEvent.ModDownloading e -> pack.withRowStatus(withRow(pack, e.file(), new RowStatus.Downloading(0)))
+                .withProgress(pack.progress().withCurrentFile(e.file()));
+            // A late step after the file finished must not turn it back into a download
+            case SyncEvent.ModProgress e -> pack.rowStatus().get(e.file()) instanceof RowStatus.Downloading
+                ? pack.withRowStatus(withRow(pack, e.file(), new RowStatus.Downloading(e.percent()))) : pack;
             case SyncEvent.ModCompleted e -> pack.withRowStatus(withRow(pack, e.file(),
                 e.success() ? new RowStatus.Done() : new RowStatus.Failed(e.failure())));
             case SyncEvent.ModRemoved e -> pack.withRowStatus(withRow(pack, e.file(), new RowStatus.Removed()));
             case SyncEvent.UpdateCompleted e -> pack
                 .withPhase(e.failCount() > 0 ? PackPhase.DONE_WITH_ERRORS : PackPhase.DONE)
                 .withResult(new Result(e.successCount(), e.failCount()))
-                .withProgress(new Progress(100, null));
-            case SyncEvent.UpdateCancelled e -> pack.withPhase(PackPhase.CANCELLED).withProgress(Progress.NONE);
+                .withProgress(pack.progress().withCurrentFile(null));
+            // The counts stay, so the header can say how much was applied before the cancel
+            case SyncEvent.UpdateCancelled e -> pack.withPhase(PackPhase.CANCELLED)
+                .withProgress(pack.progress().withCurrentFile(null));
             case SyncEvent.UpdateFailed e -> pack.withPhase(PackPhase.ERROR).withError(e.failure())
                 .withProgress(Progress.NONE);
             case SyncEvent.LogMessage e -> pack;

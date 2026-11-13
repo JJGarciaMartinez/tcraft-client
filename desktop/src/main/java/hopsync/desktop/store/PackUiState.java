@@ -29,8 +29,19 @@ public record PackUiState(String packId, String name, String manifestUrl, Path g
                           Instant lastChecked) {
 
     /** @param currentFile the file being downloaded, or {@code null} */
-    public record Progress(int percent, String currentFile) {
-        public static final Progress NONE = new Progress(0, null);
+    public record Progress(int doneFiles, int totalFiles, long bytesDone, long bytesTotal, long bytesPerSecond,
+                           String currentFile) {
+        public static final Progress NONE = new Progress(0, 0, 0, 0, 0, null);
+
+        /** 0–100, by bytes when there is something to download, else by files. */
+        public int percent() {
+            if (bytesTotal > 0) return Math.clamp(bytesDone * 100 / bytesTotal, 0, 100);
+            return totalFiles > 0 ? doneFiles * 100 / totalFiles : 0;
+        }
+
+        Progress withCurrentFile(String file) {
+            return new Progress(doneFiles, totalFiles, bytesDone, bytesTotal, bytesPerSecond, file);
+        }
     }
 
     public record Result(int succeeded, int failed) {

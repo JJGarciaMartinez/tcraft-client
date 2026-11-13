@@ -13,6 +13,7 @@ import hopsync.core.usecase.ModUpdateService;
 import hopsync.core.util.CancellationToken;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -36,6 +37,8 @@ public class PackSession {
     private Pack plannedPack;
     // A fresh token per update, so cancelling one run never affects the next
     private volatile CancellationToken cancel = new CancellationToken();
+    // Files the player already agreed to change in this run, or null when the plan needs a review
+    private volatile Set<String> reviewed;
 
     /**
      * @param executor runs planning off the caller's thread; applying runs on the {@link ApplyQueue}
@@ -56,9 +59,25 @@ public class PackSession {
 
     /** Fetches the manifest and computes the plan; publishes {@code PlanReady} or {@code UpToDate}. */
     public void startUpdate() {
+        begin(null);
+    }
+
+    /**
+     * Picks up an update the player already reviewed: after failed downloads ("Reintentar") or a cancel
+     * ("Continuar"). The plan is computed again; if all it still has to do is among {@code expected}, it is
+     * applied without asking again, otherwise (the pack changed meanwhile) it is shown for review.
+     *
+     * @param expected mod files and config paths the player already agreed to change
+     */
+    public void continueUpdate(Set<String> expected) {
+        begin(Set.copyOf(expected));
+    }
+
+    private void begin(Set<String> alreadyReviewed) {
         if (!state.tryBegin()) return;
 
         cancel = new CancellationToken();
+        reviewed = alreadyReviewed;
         events.accept(new SyncEvent.UpdateStarted(packId));
         executor.execute(this::prepare);
     }
@@ -140,6 +159,10 @@ public class PackSession {
                     state.setPhase(Phase.AWAITING_CONFIRMATION);
                 }
                 events.accept(new SyncEvent.PlanReady(packId, plan));
+                Set<String> agreed = reviewed;
+                if (agreed != null && agreed.containsAll(plan.pendingFiles())) {
+                    confirmPlan();
+                }
             }
         } catch (IOException | RuntimeException e) {
             fail(e);

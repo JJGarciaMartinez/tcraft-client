@@ -42,6 +42,11 @@ public class PackSessions {
         }
     }
 
+    /** Stops every check and apply, e.g. when the app closes. */
+    public void cancelAll() {
+        sessions.values().forEach(PackSession::cancelUpdate);
+    }
+
     public boolean anyRunning() {
         return sessions.values().stream().anyMatch(PackSession::isRunning);
     }

@@ -60,7 +60,7 @@ class ScreensTest {
                 new SyncEvent.ApplyStarted(OTHER.id()), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan())),
             reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()), new SyncEvent.Queued(D)),
             reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()), new SyncEvent.ApplyStarted(D),
-                new SyncEvent.ModDownloading(D, "new.jar"), new SyncEvent.ProgressChanged(D, 40)),
+                new SyncEvent.ModDownloading(D, "new.jar"), new SyncEvent.Progress(D, 1, 3, 40, 100, 0)),
             reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.UpToDate(D, upToDatePlan())),
             reduce(base, new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()), new SyncEvent.ApplyStarted(D),
                 new SyncEvent.UpdateCompleted(D, 1, 1)),
@@ -96,7 +96,7 @@ class ScreensTest {
     @Test
     void progressBarKeepsItsWidthWhateverFileIsDownloading() throws Exception {
         UiState applying = reduce(loaded(), new UiAction.ManifestLoaded(D, manifest()), new SyncEvent.UpdateStarted(D),
-            new SyncEvent.PlanReady(D, plan()), new SyncEvent.ApplyStarted(D), new SyncEvent.ProgressChanged(D, 40));
+            new SyncEvent.PlanReady(D, plan()), new SyncEvent.ApplyStarted(D), new SyncEvent.Progress(D, 1, 3, 40, 100, 0));
         PackHero hero = new PackHero(dispatched::add, ZoneOffset.UTC);
 
         int shortName = barWidth(hero, reduce(applying, new SyncEvent.ModDownloading(D, "a.jar")));

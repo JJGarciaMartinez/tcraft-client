@@ -7,6 +7,7 @@ import hopsync.desktop.store.UiState.Sheet;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Set;
 
 import static hopsync.desktop.store.StoreFixtures.DEMO;
 import static hopsync.desktop.store.StoreFixtures.INFO;
@@ -220,11 +221,30 @@ class ReducerTest {
 
     @Test
     void progressAndCurrentFileAreTracked() {
-        UiState state = reduce(applying(), new SyncEvent.ModDownloading(D, "new.jar"), new SyncEvent.ProgressChanged(D, 40));
+        UiState state = reduce(applying(), new SyncEvent.ModDownloading(D, "new.jar"), new SyncEvent.Progress(D, 1, 3, 40, 100, 0));
 
         assertEquals(40, demo(state).progress().percent());
         assertEquals("new.jar", demo(state).progress().currentFile());
-        assertEquals(new RowStatus.Downloading(), demo(state).rowStatus().get("new.jar"));
+        assertEquals(new RowStatus.Downloading(0), demo(state).rowStatus().get("new.jar"));
+        assertEquals(3, demo(state).progress().totalFiles());
+    }
+
+    @Test
+    void eachFileShowsItsOwnProgressUntilItFinishes() {
+        UiState state = reduce(applying(), new SyncEvent.ModDownloading(D, "new.jar"),
+            new SyncEvent.ModProgress(D, "new.jar", 35));
+        assertEquals(new RowStatus.Downloading(35), demo(state).rowStatus().get("new.jar"));
+
+        state = reduce(state, new SyncEvent.ModCompleted(D, "new.jar", true, null), new SyncEvent.ModProgress(D, "new.jar", 100));
+        assertEquals(new RowStatus.Done(), demo(state).rowStatus().get("new.jar"), "a late step does not undo the finish");
+    }
+
+    @Test
+    void cancellingKeepsTheCountsOfWhatWasApplied() {
+        UiState state = reduce(applying(), new SyncEvent.Progress(D, 2, 6, 10, 100, 0), new SyncEvent.UpdateCancelled(D));
+
+        assertEquals(2, demo(state).progress().doneFiles());
+        assertEquals(6, demo(state).progress().totalFiles());
     }
 
     @Test
@@ -393,6 +413,8 @@ class ReducerTest {
         assertSame(state, Reducer.reduce(state, new UiAction.CheckPack(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.CancelUpdate(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.ReloadInstalled(D)));
+        assertSame(state, Reducer.reduce(state, new UiAction.ContinueUpdate(D, Set.of("a.jar"))));
+        assertSame(state, Reducer.reduce(state, new UiAction.Quit()));
         assertSame(state, Reducer.reduce(state, new UiAction.CheckAll()));
         assertSame(state, Reducer.reduce(state, new UiAction.OpenFolder(D)));
         assertSame(state, Reducer.reduce(state, new UiAction.CopyServerIp(D)));

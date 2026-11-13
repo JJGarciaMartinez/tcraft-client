@@ -20,6 +20,7 @@ import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -30,6 +31,7 @@ import java.util.concurrent.Executor;
  */
 public final class Effects {
     private static final System.Logger LOG = System.getLogger(Effects.class.getName());
+    private static final Duration QUIT_WAIT = Duration.ofSeconds(5);
 
     private final Store store;
     private final PackRegistry registry;
@@ -38,9 +40,10 @@ public final class Effects {
     private final ModLoadService modLoadService;
     private final Executor background;
     private final Clock clock;
+    private final Runnable exit;
 
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
-                   ModLoadService modLoadService, Executor background, Clock clock) {
+                   ModLoadService modLoadService, Executor background, Clock clock, Runnable exit) {
         this.store = store;
         this.registry = registry;
         this.sessions = sessions;
@@ -48,6 +51,7 @@ public final class Effects {
         this.modLoadService = modLoadService;
         this.background = background;
         this.clock = clock;
+        this.exit = exit;
     }
 
     /** Starts listening to the core and the store, then loads the packs. */
@@ -66,6 +70,8 @@ public final class Effects {
             case UiAction.ConfirmPlan a -> sessions.get(a.packId()).confirmPlan();
             case UiAction.DismissPlan a -> sessions.get(a.packId()).cancelUpdate();
             case UiAction.CancelUpdate a -> sessions.get(a.packId()).cancelUpdate();
+            case UiAction.ContinueUpdate a -> sessions.get(a.packId()).continueUpdate(a.files());
+            case UiAction.Quit a -> quit();
             case UiAction.ReloadInstalled a -> loadInstalled(a.packId());
             case UiAction.SelectPack a -> {
                 remember(a.packId());
@@ -100,6 +106,30 @@ public final class Effects {
         active.ifPresent(pack -> {
             loadInstalled(pack.id());
             loadManifest(pack.id());
+        });
+    }
+
+    /**
+     * Cancels whatever runs, gives the workers a moment to save the state of what they finished, then exits.
+     * Exiting earlier would also be safe: the next check adopts finished files and deletes partial ones.
+     */
+    private void quit() {
+        if (!sessions.anyRunning()) {
+            exit.run();
+            return;
+        }
+        sessions.cancelAll();
+        background.execute(() -> {
+            long deadline = System.nanoTime() + QUIT_WAIT.toNanos();
+            while (sessions.anyRunning() && System.nanoTime() < deadline) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            exit.run();
         });
     }
 

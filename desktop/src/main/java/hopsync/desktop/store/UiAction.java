@@ -7,6 +7,7 @@ import hopsync.core.pack.Pack;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Everything that can change the UI state: events from the core, data loaded in the background and what
@@ -41,6 +42,16 @@ public sealed interface UiAction {
 
     record DismissPlan(String packId) implements UiAction {}
 
+    /**
+     * Retries failed downloads or continues a cancelled update: the plan is computed again and applied
+     * without a new review when it only touches {@code files}.
+     */
+    record ContinueUpdate(String packId, Set<String> files) implements UiAction {
+        public ContinueUpdate {
+            files = Set.copyOf(files);
+        }
+    }
+
     /** Stops the check or apply, or takes the pack out of the apply queue. */
     record CancelUpdate(String packId) implements UiAction {}
 
@@ -72,6 +83,9 @@ public sealed interface UiAction {
 
     /** @param changed the dialog saved something, so the packs must be reloaded */
     record SheetClosed(boolean changed) implements UiAction {}
+
+    /** Closes HopSync: stops whatever is running (safe: the state always matches the disk) and exits. */
+    record Quit() implements UiAction {}
 
     /** A short notice at the bottom of the window. */
     record ShowToast(String text) implements UiAction {}

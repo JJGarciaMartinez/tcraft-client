@@ -36,7 +36,7 @@ class LibraryStatusTest {
     @Test
     void applyingShowsThePercentInTheRing() {
         LibraryStatus status = status(reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()),
-            new SyncEvent.ApplyStarted(D), new SyncEvent.ProgressChanged(D, 63)));
+            new SyncEvent.ApplyStarted(D), new SyncEvent.Progress(D, 1, 3, 63, 100, 0)));
 
         assertEquals(new LibraryStatus(StatusMark.Kind.PROGRESS, 63, Messages.get("library.status.applying", 63)), status);
     }

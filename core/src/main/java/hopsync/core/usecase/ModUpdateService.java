@@ -10,6 +10,7 @@ import hopsync.core.port.ManifestSource;
 import hopsync.core.sync.FileDownloader;
 import hopsync.core.sync.FolderLock;
 import hopsync.core.sync.LocalState;
+import hopsync.core.sync.ProgressSnapshot;
 import hopsync.core.sync.StateStore;
 import hopsync.core.sync.SyncExecutor;
 import hopsync.core.sync.SyncPlan;
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
+import java.util.function.LongSupplier;
 
 /**
  * Runs a sync of one pack in two steps: {@link #prepare} fetches the manifest and computes what would
@@ -30,14 +32,22 @@ public class ModUpdateService {
     private final ManifestSource manifestSource;
     private final FileDownloader downloader;
     private final IntSupplier parallelDownloads;
+    private final LongSupplier clock;
 
     /**
      * @param parallelDownloads read on every apply, so a changed preference applies to the next update
      */
     public ModUpdateService(ManifestSource manifestSource, FileDownloader downloader, IntSupplier parallelDownloads) {
+        this(manifestSource, downloader, parallelDownloads, System::nanoTime);
+    }
+
+    /** @param clock nanoseconds for the download speed, as {@link System#nanoTime()} */
+    public ModUpdateService(ManifestSource manifestSource, FileDownloader downloader, IntSupplier parallelDownloads,
+                            LongSupplier clock) {
         this.manifestSource = manifestSource;
         this.downloader = downloader;
         this.parallelDownloads = parallelDownloads;
+        this.clock = clock;
     }
 
     public SyncPlan prepare(Pack pack, Consumer<SyncEvent> eventPublisher) throws IOException {
@@ -70,6 +80,7 @@ public class ModUpdateService {
             SyncExecutor executor = new SyncExecutor(downloader, paths.mods(), paths.config(),
                 parallelDownloads.getAsInt());
 
+            SpeedMeter speed = new SpeedMeter(clock);
             SyncExecutor.Result result = executor.execute(plan, previous, new SyncExecutor.Listener() {
                 @Override
                 public void modStarted(String file) {
@@ -87,8 +98,14 @@ public class ModUpdateService {
                 }
 
                 @Override
-                public void progress(int percent) {
-                    eventPublisher.accept(new SyncEvent.ProgressChanged(id, percent));
+                public void progress(ProgressSnapshot snapshot) {
+                    eventPublisher.accept(new SyncEvent.Progress(id, snapshot.doneFiles(), snapshot.totalFiles(),
+                        snapshot.bytesDone(), snapshot.bytesTotal(), speed.add(snapshot.bytesDone())));
+                }
+
+                @Override
+                public void modProgress(String file, int percent) {
+                    eventPublisher.accept(new SyncEvent.ModProgress(id, file, percent));
                 }
 
                 @Override

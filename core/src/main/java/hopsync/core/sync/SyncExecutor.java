@@ -39,6 +39,8 @@ public class SyncExecutor {
 
     /** Progress callbacks; may be invoked from worker threads. */
     public interface Listener {
+        int FILE_PROGRESS_STEP = 5;
+
         void modStarted(String file);
 
         /**
@@ -48,8 +50,11 @@ public class SyncExecutor {
 
         void modRemoved(String file);
 
-        /** Called when the overall percentage changes. */
-        void progress(int percent);
+        /** Called when a file finishes or the downloaded share changes by at least 0.1 %. */
+        void progress(ProgressSnapshot snapshot);
+
+        /** Download progress of one mod, in steps of {@value #FILE_PROGRESS_STEP} %. */
+        void modProgress(String file, int percent);
 
         void log(String message);
     }
@@ -78,7 +83,8 @@ public class SyncExecutor {
         Map<String, FileRecord> configs = new ConcurrentHashMap<>(plan.keptConfigs());
         AtomicInteger succeeded = new AtomicInteger();
         AtomicInteger failed = new AtomicInteger();
-        Progress progress = new Progress(plan.downloadBytes(), listener);
+        Progress progress = new Progress(plan.downloadBytes(),
+            plan.modDownloads().size() + plan.removals().size() + plan.configDownloads().size(), listener);
 
         downloadMods(plan.modDownloads(), mods, succeeded, failed, progress, listener, cancel, isCancelled, cancelled);
 
@@ -98,7 +104,7 @@ public class SyncExecutor {
                 succeeded.get(), failed.get(), true);
         }
 
-        removeMods(plan.removals(), previous, mods, listener);
+        removeMods(plan.removals(), previous, mods, progress, listener);
         installConfigs(plan.configs(), previous, configs, failed, progress, listener, cancel, isCancelled);
 
         boolean complete = failed.get() == 0 && !isCancelled.getAsBoolean();
@@ -126,10 +132,15 @@ public class SyncExecutor {
                     listener.modStarted(mod.file());
                     try {
                         Path target = SafePaths.resolveInside(modsDir, mod.file());
-                        downloader.download(mod.url(), target, mod.sha512(), mod.size(), progress::add, cancel);
+                        FileProgress fileProgress = new FileProgress(mod.file(), mod.size(), listener);
+                        downloader.download(mod.url(), target, mod.sha512(), mod.size(), bytes -> {
+                            progress.add(bytes);
+                            fileProgress.add(bytes);
+                        }, cancel);
                         mods.put(mod.file(), recordOf(target, mod.sha512()).withVersion(mod.version()));
                         succeeded.incrementAndGet();
                         listener.modFinished(mod.file(), true, null);
+                        progress.fileDone();
                     } catch (CancellationException e) {
                         cancelled.set(true);
                     } catch (IOException | RuntimeException e) {
@@ -137,6 +148,7 @@ public class SyncExecutor {
                         SyncFailure failure = SyncFailures.from(e, mod.file());
                         listener.modFinished(mod.file(), false, failure);
                         listener.log("Failed to install " + mod.file() + ": " + failure.describe());
+                        progress.fileDone();
                     }
                 }));
             }
@@ -155,7 +167,7 @@ public class SyncExecutor {
     }
 
     private void removeMods(List<String> removals, LocalState previous, Map<String, FileRecord> mods,
-                            Listener listener) {
+                            Progress progress, Listener listener) {
         for (String file : removals) {
             try {
                 Files.deleteIfExists(SafePaths.resolveInside(modsDir, file));
@@ -165,6 +177,7 @@ public class SyncExecutor {
                 mods.put(file, previous.mods().get(file));
                 listener.log("Could not remove " + file + ": " + SyncFailures.from(e, file).describe());
             }
+            progress.fileDone();
         }
     }
 
@@ -193,12 +206,14 @@ public class SyncExecutor {
                             cancel);
                         configs.put(config.path(), recordOf(target, config.sha512()));
                         listener.log("Installed config " + config.path());
+                        progress.fileDone();
                     } catch (CancellationException e) {
                         if (old != null) configs.put(config.path(), old);
                     } catch (IOException | RuntimeException e) {
                         failed.incrementAndGet();
                         if (old != null) configs.put(config.path(), old);
                         listener.log("Could not install config " + config.path() + ": " + SyncFailures.from(e, config.path()).describe());
+                        progress.fileDone();
                     }
                 }
             }
@@ -243,23 +258,62 @@ public class SyncExecutor {
         }
     }
 
+    /** Totals of the whole apply; reports a snapshot when a file finishes or the bytes move by 0.1 %. */
     private static final class Progress {
-        private final long total;
+        private final long totalBytes;
+        private final int totalFiles;
         private final Listener listener;
-        private final AtomicLong done = new AtomicLong();
-        private final AtomicInteger lastPercent = new AtomicInteger(-1);
+        private final AtomicLong bytes = new AtomicLong();
+        private final AtomicInteger files = new AtomicInteger();
+        private final AtomicInteger lastPermille = new AtomicInteger(-1);
 
-        Progress(long total, Listener listener) {
-            this.total = total;
+        Progress(long totalBytes, int totalFiles, Listener listener) {
+            this.totalBytes = totalBytes;
+            this.totalFiles = totalFiles;
             this.listener = listener;
         }
 
-        void add(long bytes) {
-            long current = done.addAndGet(bytes);
-            int percent = total > 0 ? (int) Math.min(100, current * 100 / total) : 100;
-            int last = lastPercent.get();
-            if (percent != last && lastPercent.compareAndSet(last, percent)) {
-                listener.progress(percent);
+        /** {@code delta} may be negative when a download restarts after a failed attempt. */
+        void add(long delta) {
+            long current = bytes.addAndGet(delta);
+            int permille = totalBytes > 0 ? Math.clamp(current * 1000 / totalBytes, 0, 1000) : 1000;
+            int last = lastPermille.get();
+            if (permille != last && lastPermille.compareAndSet(last, permille)) {
+                report();
+            }
+        }
+
+        void fileDone() {
+            files.incrementAndGet();
+            report();
+        }
+
+        private void report() {
+            listener.progress(new ProgressSnapshot(files.get(), totalFiles, Math.max(0, bytes.get()), totalBytes));
+        }
+    }
+
+    /** One mod's download, reported in steps so a row can show its own bar without flooding the UI. */
+    private static final class FileProgress {
+        private final String file;
+        private final long size;
+        private final Listener listener;
+        private final AtomicLong bytes = new AtomicLong();
+        private final AtomicInteger lastStep = new AtomicInteger(-1);
+
+        FileProgress(String file, long size, Listener listener) {
+            this.file = file;
+            this.size = size;
+            this.listener = listener;
+        }
+
+        void add(long delta) {
+            long current = bytes.addAndGet(delta);
+            int percent = size > 0 ? Math.clamp(current * 100 / size, 0, 100) : 100;
+            int step = percent - percent % Listener.FILE_PROGRESS_STEP;
+            int last = lastStep.get();
+            if (step != last && lastStep.compareAndSet(last, step)) {
+                listener.modProgress(file, step);
             }
         }
     }
