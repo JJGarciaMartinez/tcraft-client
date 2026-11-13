@@ -125,8 +125,10 @@ class SettingsStoreTest {
     void linuxFollowsXdg() {
         assertEquals(Path.of("/home/p/.config/hopsync/settings.json"),
             SettingsStore.defaultLocation("Linux", Map.of(), "/home/p"));
-        assertEquals(Path.of("/xdg/hopsync/settings.json"),
-            SettingsStore.defaultLocation("Linux", Map.of("XDG_CONFIG_HOME", "/xdg"), "/home/p"));
+        // XDG_CONFIG_HOME must be absolute on the machine running the test: on Windows "/xdg" is not
+        Path xdg = Path.of("/xdg").toAbsolutePath();
+        assertEquals(xdg.resolve("hopsync").resolve("settings.json"),
+            SettingsStore.defaultLocation("Linux", Map.of("XDG_CONFIG_HOME", xdg.toString()), "/home/p"));
         assertEquals(Path.of("/home/p/.config/hopsync/settings.json"),
             SettingsStore.defaultLocation("Linux", Map.of("XDG_CONFIG_HOME", "relative/dir"), "/home/p"));
     }
