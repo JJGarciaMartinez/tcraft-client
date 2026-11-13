@@ -12,7 +12,7 @@ public class JsonParseException extends IOException {
     private final int position;
 
     public JsonParseException(String message, int position) {
-        super("JSON inválido en la posición " + position + ": " + message);
+        super("Invalid JSON at position " + position + ": " + message);
         this.position = position;
     }
 

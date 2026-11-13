@@ -1,155 +1,329 @@
 package hopsync.platform.http;
 
+import hopsync.core.failure.SyncException;
+import hopsync.core.failure.SyncFailure;
 import hopsync.core.sync.FileDownloader;
+import hopsync.core.util.AtomicFiles;
+import hopsync.core.util.CancellationToken;
 
-import java.io.*;
-import java.net.HttpURLConnection;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.AtomicMoveNotSupportedException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.HexFormat;
-import java.util.Scanner;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
-import java.util.function.BooleanSupplier;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongConsumer;
 
 /**
- * The DownloadService class provides utilities for downloading content from the internet.
- * It supports downloading content as a string or saving it to a file after verifying
- * its size and hash, ensuring proper HTTP connection management and error handling.
+ * HTTP access for the whole app: fetches small text documents (manifests) and downloads files with
+ * size and SHA-512 verification. Transient failures (network errors, 5xx) are retried with backoff.
  */
 public class DownloadService implements FileDownloader {
+    private static final System.Logger LOG = System.getLogger(DownloadService.class.getName());
+
+    /** Largest text document accepted; a manifest for hundreds of mods is well under 1 MB. */
+    public static final long MAX_TEXT_BYTES = 5L * 1024 * 1024;
+    static final int MAX_ATTEMPTS = 3;
+
     private final NetworkConfig network;
+    private final Duration retryDelay;
+    private final HttpClient client;
+    private final Map<String, CachedText> textCache = new ConcurrentHashMap<>();
+
+    private record CachedText(String etag, String body) {
+    }
 
     public DownloadService(NetworkConfig network) {
+        this(network, Duration.ofMillis(500));
+    }
+
+    /**
+     * @param retryDelay wait before the first retry; doubles on each further attempt
+     */
+    DownloadService(NetworkConfig network, Duration retryDelay) {
         this.network = network;
+        this.retryDelay = retryDelay;
+        this.client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(network.connectTimeoutMillis()))
+            // NORMAL never follows an https → http redirect
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
     }
 
-
     /**
-     * Creates an {@link HttpURLConnection} instance for the specified URL string.
-     * This method validates the URL format, sets up the connection properties,
-     * and ensures the HTTP response status is 200 OK before returning the connection.
-     *
-     * @param urlString the URL string to establish a connection to
-     * @return an initialized {@link HttpURLConnection} instance if the connection is successful
-     * @throws IOException if the URL is invalid, the connection cannot be established,
-     *                     or the HTTP response status is not 200 OK
+     * Fetches a text document, reusing the last copy when the server answers 304 Not Modified.
      */
-    private HttpURLConnection createConnection(String urlString) throws IOException {
-        URI uri;
+    public String getUrlString(String url) throws IOException {
+        URI uri = toUri(url);
+        return withRetries(url, () -> {
+            CachedText cached = textCache.get(url);
+            HttpResponse<InputStream> response = send(uri, cached == null ? null : cached.etag(), CancellationToken.none());
+            try (InputStream body = response.body()) {
+                if (response.statusCode() == 304 && cached != null) {
+                    return cached.body();
+                }
+                byte[] bytes = readLimited(body, url);
+                String text = new String(bytes, charsetOf(response));
+                response.headers().firstValue("ETag").ifPresentOrElse(
+                    etag -> textCache.put(url, new CachedText(etag, text)),
+                    () -> textCache.remove(url));
+                return text;
+            }
+        });
+    }
+
+    @Override
+    public void download(String url, Path destination, String expectedSha512, long expectedSize,
+                         LongConsumer onBytes, CancellationToken cancel) throws IOException {
+        URI uri = toUri(url);
+        Path part = destination.resolveSibling(destination.getFileName() + PART_SUFFIX);
+        String file = destination.getFileName().toString();
         try {
-            uri = new URI(urlString);
-        } catch (URISyntaxException e) {
-            throw new IOException("Invalid URL: " + urlString, e);
+            withRetries(url, () -> {
+                AtomicLong reported = new AtomicLong();
+                try {
+                    HttpResponse<InputStream> response = send(uri, null, cancel);
+                    copyVerified(response.body(), part, file, expectedSha512, expectedSize, bytes -> {
+                        reported.addAndGet(bytes);
+                        onBytes.accept(bytes);
+                    }, cancel, uri.getHost());
+                    return null;
+                } catch (IOException | RuntimeException e) {
+                    // A retry starts from zero, so take back the progress this attempt reported
+                    onBytes.accept(-reported.get());
+                    throw e;
+                }
+            });
+            AtomicFiles.move(part, destination);
+        } finally {
+            Files.deleteIfExists(part);
         }
+    }
 
-        HttpURLConnection connection = (HttpURLConnection) uri.toURL().openConnection();
-        connection.setRequestProperty("User-Agent", network.userAgent());
-        connection.setConnectTimeout(network.connectTimeoutMillis());
-        connection.setReadTimeout(network.readTimeoutMillis());
+    @FunctionalInterface
+    private interface Attempt<T> {
+        T run() throws IOException;
+    }
 
-        // Check HTTP response code
-        int responseCode = connection.getResponseCode();
-        if (responseCode != HttpURLConnection.HTTP_OK) {
-            throw new IOException("HTTP error: " + responseCode + " for URL: " + urlString);
+    private <T> T withRetries(String url, Attempt<T> attempt) throws IOException {
+        for (int n = 1; ; n++) {
+            try {
+                return attempt.run();
+            } catch (SyncException e) {
+                if (n >= MAX_ATTEMPTS || !isTransient(e.failure())) {
+                    throw e;
+                }
+                LOG.log(System.Logger.Level.INFO, "Retrying " + url + " after: " + e.failure().describe());
+                sleep(retryDelay.multipliedBy(1L << (n - 1)));
+            }
         }
+    }
 
-        return connection;
+    private static boolean isTransient(SyncFailure failure) {
+        return failure instanceof SyncFailure.Network
+            || failure instanceof SyncFailure.HttpStatus status && (status.status() >= 500 || status.status() == 429);
     }
 
     /**
-     * Fetches the content of a URL as a string.
-     * This method establishes an HTTP connection to the provided URL,
-     * determines the character set from the response headers (defaulting to UTF-8 if absent),
-     * and reads the content returned by the server into a string.
-     *
-     * @param urlString the URL string to fetch content from
-     * @return the content retrieved from the specified URL as a string
-     * @throws IOException if an I/O error occurs during the connection or data retrieval
+     * Sends a GET and returns the response if it is 200 (or 304 when {@code etag} is given).
      */
-    public String getUrlString(String urlString) throws IOException {
-        HttpURLConnection connection = createConnection(urlString);
+    private HttpResponse<InputStream> send(URI uri, String etag, CancellationToken cancel) throws IOException {
+        HttpRequest.Builder request = HttpRequest.newBuilder(uri)
+            .timeout(Duration.ofMillis(network.readTimeoutMillis()))
+            .header("User-Agent", network.userAgent())
+            .GET();
+        if (etag != null) {
+            request.header("If-None-Match", etag);
+        }
+        CompletableFuture<HttpResponse<InputStream>> future =
+            client.sendAsync(request.build(), HttpResponse.BodyHandlers.ofInputStream());
+        HttpResponse<InputStream> response;
+        CancellationToken.Registration registration = cancel.onCancel(() -> future.cancel(true));
+        try {
+            response = future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CancellationException("Interrupted");
+        } catch (ExecutionException e) {
+            throw networkFailure(uri, e.getCause());
+        } finally {
+            registration.close();
+        }
+        int status = response.statusCode();
+        if (status == 200 || status == 304 && etag != null) {
+            return response;
+        }
+        response.body().close();
+        throw new SyncException(new SyncFailure.HttpStatus(status, uri.toString()));
+    }
 
-        // Get charset from the Content-Type header, default to UTF-8
-        String charset = "UTF-8";
-        String contentType = connection.getContentType();
-        if (contentType != null) {
-            String[] parts = contentType.split(";");
-            for (String part : parts) {
-                part = part.trim();
-                if (part.startsWith("charset=")) {
-                    charset = part.substring("charset=".length());
+    private void copyVerified(InputStream in, Path part, String file, String expectedSha512, long expectedSize,
+                              LongConsumer onBytes, CancellationToken cancel, String host) throws IOException {
+        MessageDigest digest = sha512();
+        long total = 0;
+        // Closing the body unblocks a read in progress when the player cancels
+        CancellationToken.Registration registration = cancel.onCancel(() -> closeQuietly(in));
+        try (InputStream body = in;
+             OutputStream out = Files.newOutputStream(part);
+             StallGuard guard = new StallGuard(Duration.ofMillis(network.readTimeoutMillis()), body)) {
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while (true) {
+                try {
+                    read = body.read(buffer);
+                } catch (IOException e) {
+                    cancel.throwIfCancelled();
+                    if (guard.stalled()) {
+                        throw new SyncException(new SyncFailure.Network(host, "no data for " + network.readTimeoutMillis() + " ms"), e);
+                    }
+                    throw new SyncException(new SyncFailure.Network(host, String.valueOf(e.getMessage())), e);
+                }
+                if (read == -1) {
                     break;
                 }
+                cancel.throwIfCancelled();
+                guard.touch();
+                total += read;
+                if (total > expectedSize) {
+                    throw new SyncException(new SyncFailure.SizeMismatch(file, expectedSize, total));
+                }
+                digest.update(buffer, 0, read);
+                out.write(buffer, 0, read);
+                onBytes.accept(read);
             }
+        } finally {
+            registration.close();
         }
+        if (total != expectedSize) {
+            throw new SyncException(new SyncFailure.SizeMismatch(file, expectedSize, total));
+        }
+        if (!HexFormat.of().formatHex(digest.digest()).equals(expectedSha512)) {
+            throw new SyncException(new SyncFailure.HashMismatch(file));
+        }
+    }
 
-        // Resolve the input stream to a string
-        try (Scanner scanner = new Scanner(connection.getInputStream(), charset)) {
-            scanner.useDelimiter("\\A");
-            return scanner.hasNext() ? scanner.next() : "";
+    private static byte[] readLimited(InputStream in, String url) throws IOException {
+        byte[] bytes = in.readNBytes((int) MAX_TEXT_BYTES + 1);
+        if (bytes.length > MAX_TEXT_BYTES) {
+            throw new SyncException(new SyncFailure.ResponseTooLarge(url, MAX_TEXT_BYTES));
+        }
+        return bytes;
+    }
+
+    private static SyncException networkFailure(URI uri, Throwable cause) {
+        if (cause instanceof CancellationException e) {
+            throw e;
+        }
+        String detail = cause.getClass().getSimpleName() + (cause.getMessage() == null ? "" : ": " + cause.getMessage());
+        return new SyncException(new SyncFailure.Network(uri.getHost(), detail), cause);
+    }
+
+    private static URI toUri(String url) throws SyncException {
+        try {
+            URI uri = new URI(url);
+            if (uri.getHost() == null) {
+                throw new SyncException(new SyncFailure.InvalidUrl(url));
+            }
+            return uri;
+        } catch (URISyntaxException e) {
+            throw new SyncException(new SyncFailure.InvalidUrl(url), e);
+        }
+    }
+
+    private static Charset charsetOf(HttpResponse<?> response) {
+        return response.headers().firstValue("Content-Type")
+            .flatMap(type -> java.util.Arrays.stream(type.split(";"))
+                .map(String::trim)
+                .filter(part -> part.regionMatches(true, 0, "charset=", 0, 8))
+                .map(part -> part.substring(8).replace("\"", ""))
+                .findFirst())
+            .filter(Charset::isSupported)
+            .map(Charset::forName)
+            .orElse(StandardCharsets.UTF_8);
+    }
+
+    private static MessageDigest sha512() {
+        try {
+            return MessageDigest.getInstance("SHA-512");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-512 is required by every Java platform", e);
+        }
+    }
+
+    private static void sleep(Duration delay) {
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CancellationException("Interrupted");
+        }
+    }
+
+    private static void closeQuietly(InputStream in) {
+        try {
+            in.close();
+        } catch (IOException e) {
+            LOG.log(System.Logger.Level.DEBUG, "Ignoring error while aborting a download", e);
         }
     }
 
     /**
-     * Downloads {@code urlString} to {@code destination} only if the content matches the expected
-     * size and SHA-512. Data is written to a temporary {@link FileDownloader#PART_SUFFIX} file next to the destination
-     * and moved into place at the end, so the destination is either the old file or the complete,
-     * verified new one; never a partial download.
-     *
-     * @param onBytes   receives the number of bytes read after each chunk
-     * @param cancelled polled between chunks; when it returns true the download stops
-     * @throws java.util.concurrent.CancellationException if cancelled
-     * @throws IOException on network errors or when the content does not match
+     * Closes the body when no bytes arrive for {@code limit}; HttpClient has no read timeout of its own
+     * once the headers are in.
      */
-    @Override
-    public void download(String urlString, Path destination, String expectedSha512, long expectedSize,
-                         LongConsumer onBytes, BooleanSupplier cancelled) throws IOException {
-        Path part = destination.resolveSibling(destination.getFileName() + PART_SUFFIX);
-        HttpURLConnection connection = createConnection(urlString);
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-512");
-            long total = 0;
-            try (InputStream in = connection.getInputStream();
-                 OutputStream out = Files.newOutputStream(part)) {
-                byte[] buffer = new byte[64 * 1024];
-                int read;
-                while ((read = in.read(buffer)) != -1) {
-                    if (cancelled.getAsBoolean() || Thread.currentThread().isInterrupted()) {
-                        throw new CancellationException("Descarga cancelada");
+    private static final class StallGuard implements AutoCloseable {
+        private final AtomicLong lastProgress = new AtomicLong(System.nanoTime());
+        private final Thread watcher;
+        private volatile boolean stalled;
+        private volatile boolean done;
+
+        StallGuard(Duration limit, InputStream body) {
+            long limitNanos = limit.toNanos();
+            Duration poll = limit.dividedBy(4).compareTo(Duration.ofSeconds(1)) < 0 ? limit.dividedBy(4) : Duration.ofSeconds(1);
+            watcher = Thread.ofVirtual().name("hopsync-stall-guard").start(() -> {
+                while (!done) {
+                    try {
+                        Thread.sleep(poll);
+                    } catch (InterruptedException e) {
+                        return;
                     }
-                    total += read;
-                    if (total > expectedSize) {
-                        throw new IOException("El archivo descargado es más grande de lo esperado (" + expectedSize + " bytes)");
+                    if (!done && System.nanoTime() - lastProgress.get() > limitNanos) {
+                        stalled = true;
+                        closeQuietly(body);
+                        return;
                     }
-                    digest.update(buffer, 0, read);
-                    out.write(buffer, 0, read);
-                    onBytes.accept(read);
                 }
-            }
-            if (total != expectedSize) {
-                throw new IOException("Tamaño incorrecto: " + total + " bytes, se esperaban " + expectedSize);
-            }
-            String actual = HexFormat.of().formatHex(digest.digest());
-            if (!actual.equals(expectedSha512)) {
-                throw new IOException("El hash SHA-512 no coincide; el archivo está corrupto o fue modificado");
-            }
-            try {
-                Files.move(part, destination, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(part, destination, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-512 is required by every Java platform", e);
-        } finally {
-            connection.disconnect();
-            Files.deleteIfExists(part);
+            });
+        }
+
+        void touch() {
+            lastProgress.set(System.nanoTime());
+        }
+
+        boolean stalled() {
+            return stalled;
+        }
+
+        @Override
+        public void close() {
+            done = true;
+            watcher.interrupt();
         }
     }
 }

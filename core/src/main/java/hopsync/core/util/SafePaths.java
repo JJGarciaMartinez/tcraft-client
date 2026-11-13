@@ -1,5 +1,8 @@
 package hopsync.core.util;
 
+import hopsync.core.failure.SyncException;
+import hopsync.core.failure.SyncFailure;
+
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -45,17 +48,17 @@ public final class SafePaths {
      */
     public static Path resolveInside(Path base, String relative) throws IOException {
         if (!isSafeRelativePath(relative)) {
-            throw new IOException("Ruta no permitida: " + relative);
+            throw new SyncException(new SyncFailure.UnsafePath(relative));
         }
         Path normalizedBase = base.toAbsolutePath().normalize();
         try {
             Path resolved = normalizedBase.resolve(relative).normalize();
             if (!resolved.startsWith(normalizedBase) || resolved.equals(normalizedBase)) {
-                throw new IOException("Ruta fuera de la carpeta permitida: " + relative);
+                throw new SyncException(new SyncFailure.UnsafePath(relative));
             }
             return resolved;
         } catch (InvalidPathException e) {
-            throw new IOException("Ruta no válida: " + relative, e);
+            throw new SyncException(new SyncFailure.UnsafePath(relative), e);
         }
     }
 }

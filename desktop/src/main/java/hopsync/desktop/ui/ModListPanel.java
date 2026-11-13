@@ -16,6 +16,8 @@ import java.util.Map;
  * and display a message when no mods are installed.
  */
 public final class ModListPanel extends JPanel {
+    private static final System.Logger LOG = System.getLogger(ModListPanel.class.getName());
+
     private final JPanel modsContainer;
     private final Map<String, ModCard> modCards;
     private final JLabel emptyLabel;
@@ -87,7 +89,7 @@ public final class ModListPanel extends JPanel {
             try {
                 SwingUtilities.invokeAndWait(() -> addModInternal(modInfo));
             } catch (Exception e) {
-                System.err.println("Error agregando mod: " + e.getMessage());
+                LOG.log(System.Logger.Level.ERROR, "Could not add the card for " + modInfo.file(), e);
             }
         }
     }
@@ -174,8 +176,7 @@ public final class ModListPanel extends JPanel {
         if (card != null) {
             action.accept(card);
         } else {
-            System.err.println("⚠️ ModCard no encontrado para: '" + modName + "'");
-            System.err.println("   Keys disponibles: " + modCards.keySet());
+            LOG.log(System.Logger.Level.DEBUG, "No card for " + modName + ", ignoring its status update");
         }
     }
 

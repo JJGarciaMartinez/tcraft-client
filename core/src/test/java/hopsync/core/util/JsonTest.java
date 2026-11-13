@@ -83,7 +83,7 @@ class JsonTest {
     void rejectsExcessiveNesting() {
         String deep = "[".repeat(10_000) + "]".repeat(10_000);
         JsonParseException e = assertThrows(JsonParseException.class, () -> Json.parse(deep));
-        assertTrue(e.getMessage().contains("anidamiento"));
+        assertTrue(e.getMessage().contains("nesting"));
     }
 
     @Test

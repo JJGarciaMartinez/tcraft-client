@@ -9,6 +9,8 @@ import java.util.Properties;
  * Falls back to sensible defaults if properties file is missing.
  */
 public class AppProperties {
+    private static final System.Logger LOG = System.getLogger(AppProperties.class.getName());
+
     private static final Properties props = new Properties();
     private static boolean loaded = false;
 
@@ -41,7 +43,7 @@ public class AppProperties {
                     .getResourceAsStream("app.properties")) {
                 if (input != null) props.load(input);
             } catch (Exception e) {
-                System.err.println("Warning: Could not load app.properties");
+                LOG.log(System.Logger.Level.WARNING, "Could not load app.properties, using default colors", e);
             }
             loaded = true;
         }

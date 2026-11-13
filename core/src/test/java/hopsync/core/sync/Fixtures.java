@@ -15,13 +15,13 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 
-final class Fixtures {
-    static final String CONTENT_HASH = "c".repeat(64);
+public final class Fixtures {
+    public static final String CONTENT_HASH = "c".repeat(64);
 
     private Fixtures() {
     }
 
-    static String sha512(String content) {
+    public static String sha512(String content) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-512");
             return HexFormat.of().formatHex(digest.digest(content.getBytes(StandardCharsets.UTF_8)));
@@ -30,22 +30,22 @@ final class Fixtures {
         }
     }
 
-    static ModEntry mod(String file, String content) {
+    public static ModEntry mod(String file, String content) {
         return new ModEntry(file, file, "1.0", "", "", file, "https://example.org/" + file, sha512(content),
             content.getBytes(StandardCharsets.UTF_8).length, ModSource.MODRINTH);
     }
 
-    static ConfigEntry config(String path, String content, boolean overwrite) {
+    public static ConfigEntry config(String path, String content, boolean overwrite) {
         return new ConfigEntry(path, "https://example.org/config/" + path, sha512(content),
             content.getBytes(StandardCharsets.UTF_8).length, overwrite);
     }
 
-    static Manifest manifest(List<ModEntry> mods, List<ConfigEntry> configs) {
+    public static Manifest manifest(List<ModEntry> mods, List<ConfigEntry> configs) {
         return new Manifest(2, new PackInfo("Pack", "1.0.0", "", null, "1.21.1", "neoforge"),
             CONTENT_HASH, mods, configs);
     }
 
-    static Path write(Path dir, String name, String content) throws IOException {
+    public static Path write(Path dir, String name, String content) throws IOException {
         Path file = dir.resolve(name);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content, StandardCharsets.UTF_8);
@@ -53,7 +53,7 @@ final class Fixtures {
     }
 
     /** Record of a file as HopSync would have saved it right after installing it. */
-    static FileRecord recordOf(Path file) throws IOException {
+    public static FileRecord recordOf(Path file) throws IOException {
         return FileHasher.describe(file, null);
     }
 }

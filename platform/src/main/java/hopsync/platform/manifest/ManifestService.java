@@ -1,5 +1,7 @@
 package hopsync.platform.manifest;
 
+import hopsync.core.failure.SyncException;
+import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ManifestParser;
 import hopsync.core.port.ManifestSource;
@@ -25,14 +27,14 @@ public class ManifestService implements ManifestSource {
     public Manifest fetchManifest() throws IOException {
         String url = settingsService.getManifestUrl();
         if (url == null || url.isBlank()) {
-            throw new IOException("No hay ningún pack configurado. Añade la URL del manifest en Ajustes.");
+            throw new SyncException(new SyncFailure.NotConfigured());
         }
         return fetchManifest(url);
     }
 
     public Manifest fetchManifest(String url) throws IOException {
         if (!url.startsWith("https://")) {
-            throw new IOException("La URL del manifest debe empezar por https://");
+            throw new SyncException(new SyncFailure.InvalidUrl(url));
         }
         return ManifestParser.parse(downloadService.getUrlString(url));
     }

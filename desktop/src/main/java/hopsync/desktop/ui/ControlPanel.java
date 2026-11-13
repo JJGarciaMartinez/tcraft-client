@@ -125,6 +125,9 @@ public final class ControlPanel extends JPanel {
         statusLabel = new JLabel("Listo para actualizar");
         statusLabel.setFont(FontLoader.getMinecraftFont(12f));
         statusLabel.setForeground(AppProperties.getTextSecondary());
+        // Takes the space left of the buttons; long messages end in "…" and show in full as a tooltip
+        statusLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        statusLabel.setMinimumSize(new Dimension(0, 0));
 
         // Central panel that includes the progress bar.
         JPanel centerPanel = new JPanel(new BorderLayout(0, 10));
@@ -135,7 +138,7 @@ public final class ControlPanel extends JPanel {
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.setOpaque(false);
         bottomPanel.add(buttonPanel, BorderLayout.WEST);
-        bottomPanel.add(statusLabel, BorderLayout.EAST);
+        bottomPanel.add(statusLabel, BorderLayout.CENTER);
         centerPanel.add(bottomPanel, BorderLayout.CENTER);
 
         // Add the central panel to the main panel
@@ -229,7 +232,10 @@ public final class ControlPanel extends JPanel {
      *               Represents the current state or progress of an operation.
      */
     public void updateStatus(String status) {
-        SwingUtilities.invokeLater(() -> statusLabel.setText(status));
+        SwingUtilities.invokeLater(() -> {
+            statusLabel.setText(status);
+            statusLabel.setToolTipText(status);
+        });
     }
 
     /**

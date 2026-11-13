@@ -2,10 +2,12 @@ package hopsync.desktop.ui;
 
 import hopsync.core.event.EventBus;
 import hopsync.core.event.UpdateEvent;
+import hopsync.core.failure.SyncFailures;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.session.UpdateCoordinator;
 import hopsync.desktop.AppContainer;
 import hopsync.desktop.config.AppProperties;
+import hopsync.desktop.i18n.Messages;
 import hopsync.platform.fs.FileSystemService;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.settings.SettingsService;
@@ -21,6 +23,8 @@ import java.util.concurrent.ExecutionException;
  * communication between layers.
  */
 public class UIController {
+    private static final System.Logger LOG = System.getLogger(UIController.class.getName());
+
     private final LauncherUI ui;
     private final EventBus eventBus;
     private final UpdateCoordinator coordinator;
@@ -101,7 +105,7 @@ public class UIController {
                 try {
                     ui.getHeaderPanel().showPack(get());
                 } catch (ExecutionException e) {
-                    ui.getHeaderPanel().showPackError(e.getCause().getMessage());
+                    ui.getHeaderPanel().showPackError(Messages.failure(SyncFailures.from(e.getCause(), "")));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -127,14 +131,14 @@ public class UIController {
     private void refreshModCountWhenDone(UpdateEvent event) {
         if (event instanceof UpdateEvent.UpdateCompleted) {
             SwingUtilities.invokeLater(() -> withInstalledMods(mods -> showModCount(mods.size())));
-        } else if (event instanceof UpdateEvent.UpdateCancelled) {
+        } else if (event instanceof UpdateEvent.UpdateCancelled || event instanceof UpdateEvent.UpdateFailed) {
             // Back to what is on disk once the worker has actually stopped
             SwingUtilities.invokeLater(this::loadCurrentMods);
         }
     }
 
     private void showModCount(int count) {
-        ui.getHeaderPanel().updateModsStatus(count + (count == 1 ? " mod instalado" : " mods instalados"));
+        ui.getHeaderPanel().updateModsStatus(Messages.get("mods.installedCount", count));
     }
 
     /**
@@ -157,7 +161,7 @@ public class UIController {
             }
             for (var mod : mods) {
                 ui.getModListPanel().addModSync(mod);
-                ui.getModListPanel().setModStatus(mod.file(), StatusType.IN_SYSTEM, "Instalado", AppProperties.getAccentSuccess());
+                ui.getModListPanel().setModStatus(mod.file(), StatusType.IN_SYSTEM, Messages.get("mod.installed"), AppProperties.getAccentSuccess());
             }
             showModCount(mods.size());
         });
@@ -178,7 +182,7 @@ public class UIController {
                 try {
                     onLoaded.accept(get());
                 } catch (ExecutionException e) {
-                    System.err.println("Error listing installed mods: " + e.getCause().getMessage());
+                    LOG.log(System.Logger.Level.WARNING, "Could not list installed mods", e.getCause());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }

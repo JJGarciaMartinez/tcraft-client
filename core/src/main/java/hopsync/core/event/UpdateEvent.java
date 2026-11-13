@@ -1,5 +1,6 @@
 package hopsync.core.event;
 
+import hopsync.core.failure.SyncFailure;
 import hopsync.core.sync.SyncPlan;
 
 /**
@@ -17,10 +18,12 @@ public sealed interface UpdateEvent {
     record ApplyStarted() implements UpdateEvent {}
     record UpdateCompleted(int successCount, int failCount) implements UpdateEvent {}
     record UpdateCancelled() implements UpdateEvent {}
-    record UpdateFailed(String error) implements UpdateEvent {}
+    /** The update stopped before finishing; nothing beyond what the state records was changed. */
+    record UpdateFailed(SyncFailure failure) implements UpdateEvent {}
     record ProgressChanged(int percent) implements UpdateEvent {}
     record ModDownloading(String file) implements UpdateEvent {}
-    record ModCompleted(String file, boolean success) implements UpdateEvent {}
+    /** @param failure why the mod could not be installed, or {@code null} on success */
+    record ModCompleted(String file, boolean success, SyncFailure failure) implements UpdateEvent {}
     record ModRemoved(String file) implements UpdateEvent {}
     record LogMessage(String message) implements UpdateEvent {}
 }

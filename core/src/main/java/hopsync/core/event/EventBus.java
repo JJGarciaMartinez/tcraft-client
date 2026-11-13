@@ -9,6 +9,8 @@ import java.util.function.Consumer;
  * Thread-safe for concurrent publishing and subscribing.
  */
 public class EventBus {
+    private static final System.Logger LOG = System.getLogger(EventBus.class.getName());
+
     private final List<Consumer<UpdateEvent>> listeners = new CopyOnWriteArrayList<>();
 
     public void subscribe(Consumer<UpdateEvent> listener) {
@@ -20,7 +22,7 @@ public class EventBus {
             try {
                 listener.accept(event);
             } catch (Exception e) {
-                System.err.println("Error in event listener: " + e.getMessage());
+                LOG.log(System.Logger.Level.ERROR, "Error in event listener for " + event, e);
             }
         }
     }

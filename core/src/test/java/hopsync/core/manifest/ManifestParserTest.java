@@ -5,6 +5,7 @@ import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.ModEntry;
 import hopsync.core.manifest.ModSource;
 import hopsync.core.util.JsonParseException;
+import hopsync.core.failure.SyncFailure;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -108,7 +110,7 @@ class ManifestParserTest {
     @Test
     void rejectsUnsupportedFormatVersion() {
         ManifestException e = assertRejected(manifest("3", validMod(), ""));
-        assertTrue(e.getMessage().contains("no soportada"));
+        assertEquals(new SyncFailure.UnsupportedFormat(3, Manifest.SUPPORTED_FORMAT_VERSION), e.failure());
     }
 
     @Test
@@ -122,7 +124,9 @@ class ManifestParserTest {
 
     @Test
     void rejectsInvalidJson() {
-        assertThrows(JsonParseException.class, () -> ManifestParser.parse("{\"format_version\": 2,"));
+        ManifestException e = assertThrows(ManifestException.class, () -> ManifestParser.parse("{\"format_version\": 2,"));
+        assertInstanceOf(SyncFailure.ManifestInvalid.class, e.failure());
+        assertInstanceOf(JsonParseException.class, e.getCause());
     }
 
     @ParameterizedTest
@@ -154,7 +158,7 @@ class ManifestParserTest {
         String a = mod("Mod.jar", "https://x.org/a.jar", SHA512, "modrinth");
         String b = mod("mod.jar", "https://x.org/b.jar", SHA512, "local");
         ManifestException e = assertRejected(manifest("2", a + "," + b, ""));
-        assertTrue(e.getMessage().contains("duplicado"));
+        assertTrue(detail(e).contains("duplicated"), detail(e));
     }
 
     @Test
@@ -176,6 +180,10 @@ class ManifestParserTest {
     void namesTheOffendingField() {
         String bad = mod("mod.jar", "https://x.org/a.jar", SHA512, "modrinth").replace("\"size\": 10", "\"size\": -1");
         ManifestException e = assertRejected(manifest("2", validMod().replace("mod.jar", "ok.jar") + "," + bad, ""));
-        assertTrue(e.getMessage().startsWith("mods[1].size"), e.getMessage());
+        assertTrue(detail(e).startsWith("mods[1].size"), detail(e));
+    }
+
+    private static String detail(ManifestException e) {
+        return assertInstanceOf(SyncFailure.ManifestInvalid.class, e.failure()).detail();
     }
 }

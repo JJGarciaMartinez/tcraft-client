@@ -19,6 +19,8 @@ import java.io.InputStream;
  * from the IDE and when packaged in a JAR file.
  */
 public class FontLoader {
+    private static final System.Logger LOG = System.getLogger(FontLoader.class.getName());
+
     private static Font minecraftFont;
 
     /**
@@ -43,10 +45,8 @@ public class FontLoader {
                 GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
                 ge.registerFont(minecraftFont);
 
-                System.out.println("✓ Fuente Minecraft cargada correctamente");
             } catch (FontFormatException | IOException e) {
-                System.err.println("Error al cargar la fuente Minecraft: " + e.getMessage());
-                System.err.println("  Usando fuente Arial como alternativa");
+                LOG.log(System.Logger.Level.WARNING, "Could not load the Minecraft font, using " + AppProperties.getFallbackFont(), e);
                 minecraftFont = new Font(AppProperties.getFallbackFont(), Font.PLAIN, 12);
             }
         }
