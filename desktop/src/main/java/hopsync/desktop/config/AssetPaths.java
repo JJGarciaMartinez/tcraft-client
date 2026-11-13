@@ -17,12 +17,6 @@ public class AssetPaths {
 
     // Images
     public static final String MINECRAFT_TITLE = ASSETS_DIR + "minecraft_title.png";
-    public static final String CHECKMARK_ICON = ASSETS_DIR + "checkmark_icon.png";
-    public static final String DANGERMARK_ICON = ASSETS_DIR + "dangermark_icon.png";
-    public static final String LOAD_ICON = ASSETS_DIR + "load_icon.png";
-    public static final String WARNINGMARK_ICON = ASSETS_DIR + "warningmark_icon.png";
-    public static final String XMARK_ICON = ASSETS_DIR + "xmark_icon.png";
-    public static final String SYSTEM_ICON = ASSETS_DIR + "system_icon.png";
     public static final String UPDATE_BUTTON = ASSETS_DIR + "update_button.png";
     public static final String CANCEL_BUTTON = ASSETS_DIR + "cancel_button.png";
     public static final String REFRESH_BUTTON = ASSETS_DIR + "refresh_button.png";

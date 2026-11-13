@@ -127,7 +127,7 @@ public class SyncExecutor {
                     try {
                         Path target = SafePaths.resolveInside(modsDir, mod.file());
                         downloader.download(mod.url(), target, mod.sha512(), mod.size(), progress::add, cancel);
-                        mods.put(mod.file(), recordOf(target, mod.sha512()));
+                        mods.put(mod.file(), recordOf(target, mod.sha512()).withVersion(mod.version()));
                         succeeded.incrementAndGet();
                         listener.modFinished(mod.file(), true, null);
                     } catch (CancellationException e) {

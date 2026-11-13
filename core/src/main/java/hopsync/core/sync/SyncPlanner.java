@@ -45,7 +45,8 @@ public class SyncPlanner {
             FileRecord current = FileHasher.describe(path, state.mods().get(mod.file()));
             if (current.sha512().equals(mod.sha512())) {
                 modActions.add(new ModAction(mod, ModChange.UP_TO_DATE));
-                keptMods.put(mod.file(), current);
+                // Same hash as the manifest, so this is the manifest's version (also fills in old records)
+                keptMods.put(mod.file(), current.withVersion(mod.version()));
             } else {
                 modActions.add(new ModAction(mod, ModChange.UPDATE));
             }

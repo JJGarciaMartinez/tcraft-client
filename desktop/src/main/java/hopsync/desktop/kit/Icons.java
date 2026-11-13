@@ -24,7 +24,7 @@ public final class Icons {
 
     public enum Glyph {
         CHECK, PLUS, UP, MINUS, X, WARN, SPINNER, PENDING, GEAR, FOLDER, COPY, SEARCH, REFRESH, CLOCK,
-        SHIELD, USER, FILE, MORE, CHEVRON, EXTERNAL, TRASH
+        SHIELD, USER, FILE, MORE, CHEVRON, CHEVRON_DOWN, EXTERNAL, TRASH
     }
 
     private static final int GRID = 16;
@@ -104,6 +104,7 @@ public final class Icons {
             case FILE -> new Shape[] {closed(4, 2, 9.5, 2, 12.5, 5, 12.5, 14, 4, 14), polyline(9.5, 2, 9.5, 5, 12.5, 5)};
             case MORE -> new Shape[0];
             case CHEVRON -> new Shape[] {polyline(6, 4, 10, 8, 6, 12)};
+            case CHEVRON_DOWN -> new Shape[] {polyline(4, 6, 8, 10, 12, 6)};
             case EXTERNAL -> new Shape[] {polyline(12.5, 9, 12.5, 13, 3, 13, 3, 3.5, 7, 3.5), polyline(9, 3, 13, 3, 13, 7), line(13, 3, 7.5, 8.5)};
             case TRASH -> new Shape[] {line(2.5, 4.5, 13.5, 4.5), polyline(6, 4.5, 6, 2.5, 10, 2.5, 10, 4.5), polyline(4, 4.5, 5, 13.5, 11, 13.5, 12, 4.5)};
         };

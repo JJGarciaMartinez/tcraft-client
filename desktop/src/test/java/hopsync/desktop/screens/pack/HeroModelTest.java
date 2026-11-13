@@ -15,6 +15,7 @@ import java.util.List;
 import static hopsync.desktop.store.StoreFixtures.DEMO;
 import static hopsync.desktop.store.StoreFixtures.OTHER;
 import static hopsync.desktop.store.StoreFixtures.loaded;
+import static hopsync.desktop.store.StoreFixtures.manifest;
 import static hopsync.desktop.store.StoreFixtures.plan;
 import static hopsync.desktop.store.StoreFixtures.reduce;
 import static hopsync.desktop.store.StoreFixtures.upToDatePlan;
@@ -148,9 +149,9 @@ class HeroModelTest {
         UiState state = loaded();
         assertNull(HeroModel.meta(state.packs().get(D)));
 
-        state = reduce(state, new UiAction.PackInfoLoaded(D, hopsync.desktop.store.StoreFixtures.INFO, 77));
+        state = reduce(state, new UiAction.ManifestLoaded(D, manifest()));
         String meta = HeroModel.meta(state.packs().get(D));
         assertNotNull(meta);
-        assertTrue(meta.contains("1.21.1") && meta.contains("neoforge") && meta.contains("77"));
+        assertTrue(meta.contains("1.21.1") && meta.contains("neoforge") && meta.contains("3 mods"));
     }
 }

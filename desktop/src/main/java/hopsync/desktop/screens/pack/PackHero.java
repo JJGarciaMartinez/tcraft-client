@@ -42,6 +42,7 @@ import java.util.function.Function;
 public final class PackHero extends JPanel {
     private static final int MIN_HEIGHT = 134;
     private static final int ACTIONS_MIN_WIDTH = 220;
+    private static final int PROGRESS_WIDTH = 280;
 
     private final Consumer<UiAction> dispatch;
     private final ZoneId zone;
@@ -56,7 +57,18 @@ public final class PackHero extends JPanel {
     private final JLabel stateDetail = new JLabel();
     private final JPanel tags = row(FlowLayout.RIGHT);
     private final JPanel buttons = row(FlowLayout.RIGHT);
-    private final JPanel progress = new JPanel(new BorderLayout(0, 4));
+    // Fixed width: the file name changes many times while applying and must not resize the bar
+    private final JPanel progress = new JPanel(new BorderLayout(0, 4)) {
+        @Override
+        public Dimension getPreferredSize() {
+            return new Dimension(UIScale.scale(PROGRESS_WIDTH), super.getPreferredSize().height);
+        }
+
+        @Override
+        public Dimension getMaximumSize() {
+            return getPreferredSize();
+        }
+    };
     private final JProgressBar bar = new JProgressBar(0, 100);
     private final JLabel percent = new JLabel();
     private final JLabel currentFile = new JLabel();
@@ -129,7 +141,7 @@ public final class PackHero extends JPanel {
         tools.add(folder);
         tools.add(more);
 
-        bar.setPreferredSize(new Dimension(UIScale.scale(280), UIScale.scale(10)));
+        bar.setPreferredSize(new Dimension(UIScale.scale(PROGRESS_WIDTH), UIScale.scale(10)));
         percent.setForeground(Palette.textSecondary());
         currentFile.setForeground(Palette.text());
         progress.setOpaque(false);
@@ -182,7 +194,10 @@ public final class PackHero extends JPanel {
         if (model.percent() != null) {
             bar.setValue(model.percent());
             percent.setText(Messages.get("hero.progress", model.percent()));
-            currentFile.setText(model.currentFile() == null ? " " : Messages.get("hero.downloading", model.currentFile()));
+            // A long name is cut with "…" inside the fixed width; the tooltip keeps it whole
+            String downloading = model.currentFile() == null ? " " : Messages.get("hero.downloading", model.currentFile());
+            currentFile.setText(downloading);
+            currentFile.setToolTipText(model.currentFile() == null ? null : downloading);
         }
         shown = model;
         // The texts above change the height the header needs (the server button only exists with an IP)
