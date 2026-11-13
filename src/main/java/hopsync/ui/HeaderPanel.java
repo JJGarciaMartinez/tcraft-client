@@ -3,6 +3,7 @@ package hopsync.ui;
 import hopsync.config.AppConfig;
 import hopsync.config.AppProperties;
 import hopsync.config.AssetPaths;
+import hopsync.model.PackInfo;
 import hopsync.service.FileSystemService;
 import hopsync.service.SystemInfoService;
 import hopsync.util.FontLoader;
@@ -10,6 +11,8 @@ import hopsync.util.ImageLoader;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.StringSelection;
+import java.io.File;
 
 /**
  * The HeaderPanel class is a custom JPanel implementation used as the
@@ -19,6 +22,12 @@ import java.awt.*;
  */
 public class HeaderPanel extends JPanel {
     private final JLabel modStatusLabel;
+    private final JLabel modPathLabel;
+    private final JLabel packLabel;
+    private final JLabel packDetailLabel;
+    private final JLabel serverLabel;
+    private final JButton copyIpButton;
+    private String serverIp;
     private final JLabel statusIconLabel;
 
     /**
@@ -87,14 +96,15 @@ public class HeaderPanel extends JPanel {
 
         // Add Java version label
         String javaVersion = System.getProperty("java.version");
-        JLabel javaVersionLabel = new JLabel("☕ Java: " + javaVersion);
+        JLabel javaVersionLabel = new JLabel("Java: " + javaVersion);
         javaVersionLabel.setFont(normalMinecraftFont);
         javaVersionLabel.setForeground(AppProperties.getTextSecondary());
         javaVersionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add mods' path label
-        String modsPath = fileSystemService.getModsFolder().getAbsolutePath();
-        JLabel modPathLabel = new JLabel("📁 Ruta: " + modsPath);
+        String gamePath = fileSystemService.getGameDir().getAbsolutePath();
+        modPathLabel = new JLabel("Ruta: " + gamePath);
+        modPathLabel.setToolTipText(gamePath);
         modPathLabel.setFont(normalMinecraftFont);
         modPathLabel.setForeground(AppProperties.getTextTertiary());
         modPathLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -107,6 +117,41 @@ public class HeaderPanel extends JPanel {
         systemInfoPanel.add(javaVersionLabel);
         systemInfoPanel.add(Box.createVerticalStrut(5));
         systemInfoPanel.add(modPathLabel);
+
+        // Pack info, filled once the manifest is fetched
+        packLabel = new JLabel("Pack: cargando…");
+        packLabel.setFont(normalMinecraftFont);
+        packLabel.setForeground(AppProperties.getTextPrimary());
+        packLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        packDetailLabel = new JLabel(" ");
+        packDetailLabel.setFont(normalMinecraftFont);
+        packDetailLabel.setForeground(AppProperties.getTextSecondary());
+        packDetailLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        serverLabel = new JLabel();
+        serverLabel.setFont(normalMinecraftFont);
+        serverLabel.setForeground(AppProperties.getTextSecondary());
+        copyIpButton = new JButton("Copiar IP");
+        copyIpButton.setFont(smallMinecraftFont);
+        copyIpButton.setFocusPainted(false);
+        copyIpButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        copyIpButton.addActionListener(e -> copyServerIp());
+        JPanel serverPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        serverPanel.setOpaque(false);
+        serverPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        serverPanel.add(serverLabel);
+        serverPanel.add(Box.createHorizontalStrut(8));
+        serverPanel.add(copyIpButton);
+        serverLabel.setVisible(false);
+        copyIpButton.setVisible(false);
+
+        systemInfoPanel.add(Box.createVerticalStrut(10));
+        systemInfoPanel.add(packLabel);
+        systemInfoPanel.add(Box.createVerticalStrut(5));
+        systemInfoPanel.add(packDetailLabel);
+        systemInfoPanel.add(Box.createVerticalStrut(5));
+        systemInfoPanel.add(serverPanel);
 
         // Add components to the top panel
         topPanel.add(bannerPanel, BorderLayout.WEST);
@@ -167,6 +212,52 @@ public class HeaderPanel extends JPanel {
      *
      * @param text the status text to be displayed in the mods status label.
      */
+    /**
+     * Shows the pack name, version, Minecraft version, loader and server address.
+     */
+    public void showPack(PackInfo pack) {
+        SwingUtilities.invokeLater(() -> {
+            packLabel.setText("Pack: " + pack.name() + " " + pack.version());
+            packDetailLabel.setText("Minecraft " + pack.minecraft() + " · " + pack.loader());
+            packLabel.setForeground(AppProperties.getTextPrimary());
+            serverIp = pack.serverIp();
+            boolean hasIp = serverIp != null && !serverIp.isBlank();
+            serverLabel.setText("Servidor: " + (hasIp ? serverIp : ""));
+            serverLabel.setVisible(hasIp);
+            copyIpButton.setVisible(hasIp);
+        });
+    }
+
+    /**
+     * Shows why the pack could not be loaded.
+     */
+    public void showPackError(String message) {
+        SwingUtilities.invokeLater(() -> {
+            packLabel.setText("Pack: " + message);
+            packDetailLabel.setText(" ");
+            packLabel.setForeground(AppProperties.getAccentError());
+            serverLabel.setVisible(false);
+            copyIpButton.setVisible(false);
+        });
+    }
+
+    public void setGameDir(File gameDir) {
+        SwingUtilities.invokeLater(() -> {
+            modPathLabel.setText("Ruta: " + gameDir.getAbsolutePath());
+            modPathLabel.setToolTipText(gameDir.getAbsolutePath());
+        });
+    }
+
+    private void copyServerIp() {
+        if (serverIp != null) {
+            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(serverIp), null);
+            copyIpButton.setText("¡Copiada!");
+            Timer reset = new Timer(1500, e -> copyIpButton.setText("Copiar IP"));
+            reset.setRepeats(false);
+            reset.start();
+        }
+    }
+
     public void updateModsStatus(String text) {
         SwingUtilities.invokeLater(() -> modStatusLabel.setText(text));
     }

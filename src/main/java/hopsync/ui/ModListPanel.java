@@ -62,6 +62,8 @@ public class ModListPanel extends JPanel {
         JScrollPane scrollPane = new JScrollPane(modsContainer);
         scrollPane.setBorder(null);
         scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        // Long descriptions are clipped instead of widening every card
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
         scrollPane.setBackground(AppProperties.getBackgroundDark());
 
         // Add a scroll pane to the main panel
@@ -239,11 +241,28 @@ public class ModListPanel extends JPanel {
      * Thread (EDT) to ensure thread safety with Swing components.
      */
     public void clear() {
-        SwingUtilities.invokeLater(() -> {
-            modsContainer.removeAll();
-            modCards.clear();
-            modsContainer.revalidate();
-            modsContainer.repaint();
-        });
+        // Run immediately on the EDT: deferring would wipe cards added right after this call
+        if (SwingUtilities.isEventDispatchThread()) {
+            clearInternal();
+        } else {
+            SwingUtilities.invokeLater(this::clearInternal);
+        }
+    }
+
+    private void clearInternal() {
+        modsContainer.removeAll();
+        modCards.clear();
+        modsContainer.revalidate();
+        modsContainer.repaint();
+    }
+
+    /**
+     * Shows the "no mods" message. Must run on the EDT.
+     */
+    public void showEmpty() {
+        clearInternal();
+        showEmptyMessage();
+        modsContainer.revalidate();
+        modsContainer.repaint();
     }
 }

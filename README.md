@@ -50,7 +50,7 @@ The application uses a **Model-Service-UI** architecture:
 ## Technical Details
 
 - **Language**: Java (modern syntax with records and enhanced features)
-- **UI Framework**: Java Swing with custom theming
+- **UI Framework**: Java Swing with the FlatLaf dark theme (bundled in the JAR)
 - **Architecture**: MVC-inspired separation of concerns
 - **Concurrency**: Background threading for download operations
 - **Cross-platform**: Supports Windows, macOS, and Linux

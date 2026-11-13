@@ -1,6 +1,5 @@
 package hopsync.service;
 
-import hopsync.config.AppProperties;
 import hopsync.model.Manifest;
 
 import java.io.IOException;
@@ -10,13 +9,26 @@ import java.io.IOException;
  */
 public class ManifestService {
     private final DownloadService downloadService;
+    private final SettingsService settingsService;
 
-    public ManifestService(DownloadService downloadService) {
+    public ManifestService(DownloadService downloadService, SettingsService settingsService) {
         this.downloadService = downloadService;
+        this.settingsService = settingsService;
     }
 
+    /** Fetches the manifest of the configured pack. */
     public Manifest fetchManifest() throws IOException {
-        String json = downloadService.getUrlString(AppProperties.getManifestUrl());
-        return ManifestParser.parse(json);
+        String url = settingsService.getManifestUrl();
+        if (url == null || url.isBlank()) {
+            throw new IOException("No hay ningún pack configurado. Añade la URL del manifest en Ajustes.");
+        }
+        return fetchManifest(url);
+    }
+
+    public Manifest fetchManifest(String url) throws IOException {
+        if (!url.startsWith("https://")) {
+            throw new IOException("La URL del manifest debe empezar por https://");
+        }
+        return ManifestParser.parse(downloadService.getUrlString(url));
     }
 }
