@@ -28,15 +28,29 @@ public final class Reducer {
             case UiAction.SyncEventReceived a -> onSyncEvent(state, a.event(), a.at());
             case UiAction.PacksLoaded a -> onPacksLoaded(state, a);
             case UiAction.InstalledModsLoaded a -> updatePack(state, a.packId(), pack -> pack.withInstalled(a.files()));
-            case UiAction.PackInfoLoaded a -> updatePack(state, a.packId(), pack -> pack.withPackInfo(a.info(), null));
-            case UiAction.PackInfoFailed a -> updatePack(state, a.packId(), pack -> pack.withPackInfo(null, a.failure()));
-            case UiAction.ConfirmPlan a -> closeReview(state, a.packId());
-            case UiAction.DismissPlan a -> closeReview(state, a.packId());
+            case UiAction.PackInfoLoaded a -> updatePack(state, a.packId(),
+                pack -> pack.withPackInfo(a.info(), a.modCount(), null));
+            case UiAction.PackInfoFailed a -> updatePack(state, a.packId(),
+                pack -> pack.withPackInfo(null, pack.modCount(), a.failure()));
+            // Commands handled by Effects; the state follows from the core events they cause
             case UiAction.CheckPack a -> state;
+            case UiAction.CheckAll a -> state;
+            case UiAction.ConfirmPlan a -> state;
+            case UiAction.DismissPlan a -> state;
             case UiAction.CancelUpdate a -> state;
             case UiAction.ReloadInstalled a -> state;
-            case UiAction.OpenSettings a -> openSettings(state);
-            case UiAction.SettingsClosed a -> state.withSheet(Sheet.NONE);
+            case UiAction.OpenFolder a -> state;
+            case UiAction.CopyServerIp a -> state;
+            case UiAction.CopyPackLink a -> state;
+            case UiAction.RemovePack a -> state;
+            case UiAction.OpenSettings a -> openForSelectedPack(state,
+                state.packs().isEmpty() ? Sheet.SETTINGS_FIRST_RUN : Sheet.SETTINGS);
+            case UiAction.AddPack a -> state.withSheet(Sheet.ADD_PACK);
+            case UiAction.AskRemovePack a -> state.packs().isEmpty() ? state
+                : openForSelectedPack(state, Sheet.REMOVE_PACK);
+            case UiAction.OpenAbout a -> state.withSheet(Sheet.ABOUT);
+            case UiAction.SheetClosed a -> state.withSheet(Sheet.NONE);
+            case UiAction.ShowToast a -> state.withToast(a.text());
             case UiAction.SelectPack a -> state.packs().containsKey(a.packId()) ? state.withSelected(a.packId()) : state;
             case UiAction.SelectTab a -> state.withTab(a.tab());
             case UiAction.SetFilter a -> state.withFilter(a.filter());
@@ -51,14 +65,7 @@ public final class Reducer {
             // A pack removed while its last events were still on the way
             return state;
         }
-        UiState next = state.withPack(onPackEvent(pack, event, at));
-        if (event instanceof SyncEvent.PlanReady && event.packId().equals(state.selectedPackId())) {
-            return next.withSheet(Sheet.REVIEW);
-        }
-        if (event instanceof SyncEvent.UpdateCancelled && isReviewing(state, event.packId())) {
-            return next.withSheet(Sheet.NONE);
-        }
-        return next;
+        return state.withPack(onPackEvent(pack, event, at));
     }
 
     private static PackUiState onPackEvent(PackUiState pack, SyncEvent event, Instant at) {
@@ -106,20 +113,12 @@ public final class Reducer {
         return next;
     }
 
-    private static UiState openSettings(UiState state) {
+    private static UiState openForSelectedPack(UiState state, Sheet sheet) {
         if (state.selected().map(pack -> pack.phase().isBusy()).orElse(false)) {
             // The pack being updated keeps its link and folder until it finishes
             return state;
         }
-        return state.withSheet(state.packs().isEmpty() ? Sheet.SETTINGS_FIRST_RUN : Sheet.SETTINGS);
-    }
-
-    private static UiState closeReview(UiState state, String packId) {
-        return isReviewing(state, packId) ? state.withSheet(Sheet.NONE) : state;
-    }
-
-    private static boolean isReviewing(UiState state, String packId) {
-        return state.sheet() == Sheet.REVIEW && packId.equals(state.selectedPackId());
+        return state.withSheet(sheet);
     }
 
     private static UiState updatePack(UiState state, String packId, UnaryOperator<PackUiState> change) {

@@ -19,10 +19,20 @@ import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Lets the player choose the modpack (manifest URL) and the game folder to keep in sync. Edits the active
- * pack, or adds the first one.
+ * Lets the player choose the modpack (manifest URL) and the game folder to keep in sync: adds a pack or
+ * edits the active one. Replaced by the add-pack wizard and the pack settings sheet.
  */
 public final class SettingsDialog extends JDialog {
+
+    public enum Mode {
+        /** No packs yet: explains what HopSync needs and suggests the preset pack. */
+        FIRST_RUN,
+        /** Adds another pack and selects it. */
+        ADD,
+        /** Edits the active pack. */
+        EDIT
+    }
+
     private final PackRegistry registry;
     private final Pack pack;
     private final Path settingsFile;
@@ -34,8 +44,8 @@ public final class SettingsDialog extends JDialog {
     private boolean saved;
 
     private SettingsDialog(Window owner, PackRegistry registry, Pack pack, Path settingsFile,
-                           ManifestService manifestService, String url, Path gameDir, boolean firstRun) {
-        super(owner, "Ajustes del pack", ModalityType.APPLICATION_MODAL);
+                           ManifestService manifestService, String url, Path gameDir, Mode mode) {
+        super(owner, mode == Mode.EDIT ? "Ajustes del pack" : "Añadir pack", ModalityType.APPLICATION_MODAL);
         this.registry = registry;
         this.pack = pack;
         this.settingsFile = settingsFile;
@@ -50,7 +60,7 @@ public final class SettingsDialog extends JDialog {
         c.insets = new Insets(4, 4, 4, 4);
         c.anchor = GridBagConstraints.WEST;
 
-        if (firstRun) {
+        if (mode == Mode.FIRST_RUN) {
             c.gridx = 0; c.gridy = 0; c.gridwidth = 3;
             form.add(new JLabel("<html>Elige el pack que quieres mantener sincronizado y la carpeta del juego.<br>"
                 + "Si usas Prism, CurseForge o Modrinth App, elige la carpeta de la instancia.</html>"), c);
@@ -98,16 +108,14 @@ public final class SettingsDialog extends JDialog {
 
     /**
      * Shows the dialog and returns true if new settings were saved. Must run on the EDT.
-     *
-     * @param firstRun shows an introduction for players opening the app for the first time
      */
     public static boolean show(Window owner, PackRegistry registry, ManifestService manifestService,
-                               String presetManifestUrl, Path settingsFile, Path defaultGameDir, boolean firstRun) {
-        Pack pack = registry.active().orElse(null);
-        String url = pack != null ? pack.manifestUrl() : presetManifestUrl;
+                               String presetManifestUrl, Path settingsFile, Path defaultGameDir, Mode mode) {
+        Pack pack = mode == Mode.EDIT ? registry.active().orElse(null) : null;
+        String url = pack != null ? pack.manifestUrl() : mode == Mode.FIRST_RUN ? presetManifestUrl : "";
         Path gameDir = pack != null ? pack.gameDir() : defaultGameDir;
         SettingsDialog dialog = new SettingsDialog(owner, registry, pack, settingsFile, manifestService, url, gameDir,
-            firstRun);
+            mode);
         dialog.setVisible(true);
         return dialog.saved;
     }
@@ -160,7 +168,7 @@ public final class SettingsDialog extends JDialog {
         Path gameDir = Path.of(gameDirField.getText().trim()).toAbsolutePath();
         try {
             if (pack == null) {
-                registry.add(url, gameDir);
+                registry.select(registry.add(url, gameDir).id());
             } else {
                 // A different link may be a different pack: its name comes from the next manifest
                 Pack changed = url.equals(pack.manifestUrl()) ? pack : pack.withManifestUrl(url).withName("");

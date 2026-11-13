@@ -13,17 +13,23 @@ import java.util.Optional;
  * @param query          search text of the mod list, never {@code null}
  * @param expandedRow    file of the expanded mod row, or {@code null}
  * @param sheet          the dialog or sheet open on top of the window
+ * @param toast          the last short notice shown, or {@code null}
  */
 public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab tab, Filter filter, String query,
-                      String expandedRow, Sheet sheet) {
+                      String expandedRow, Sheet sheet, Toast toast) {
 
     public enum Tab { PACK, OWN_MODS, CONFIGS }
 
     public enum Filter { CHANGES, ALL }
 
-    public enum Sheet { NONE, REVIEW, SETTINGS, SETTINGS_FIRST_RUN }
+    /** Dialogs; {@code SETTINGS} and {@code REMOVE_PACK} act on the selected pack. */
+    public enum Sheet { NONE, SETTINGS, SETTINGS_FIRST_RUN, ADD_PACK, REMOVE_PACK, ABOUT }
 
-    public static final UiState INITIAL = new UiState(Map.of(), null, Tab.PACK, Filter.ALL, "", null, Sheet.NONE);
+    /** @param id grows with every notice, so the same text shown twice still counts as new */
+    public record Toast(String text, long id) {
+    }
+
+    public static final UiState INITIAL = new UiState(Map.of(), null, Tab.PACK, Filter.ALL, "", null, Sheet.NONE, null);
 
     public UiState {
         packs = Collections.unmodifiableMap(new LinkedHashMap<>(packs));
@@ -35,7 +41,7 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     }
 
     UiState withPacks(Map<String, PackUiState> newPacks, String newSelected) {
-        return new UiState(newPacks, newSelected, tab, filter, query, expandedRow, sheet);
+        return new UiState(newPacks, newSelected, tab, filter, query, expandedRow, sheet, toast);
     }
 
     UiState withPack(PackUiState pack) {
@@ -45,26 +51,40 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     }
 
     UiState withSelected(String packId) {
-        return new UiState(packs, packId, tab, filter, query, null, sheet);
+        return new UiState(packs, packId, tab, filter, query, null, sheet, toast);
     }
 
     UiState withTab(Tab newTab) {
-        return new UiState(packs, selectedPackId, newTab, filter, query, expandedRow, sheet);
+        return new UiState(packs, selectedPackId, newTab, filter, query, expandedRow, sheet, toast);
     }
 
     UiState withFilter(Filter newFilter) {
-        return new UiState(packs, selectedPackId, tab, newFilter, query, expandedRow, sheet);
+        return new UiState(packs, selectedPackId, tab, newFilter, query, expandedRow, sheet, toast);
     }
 
     UiState withQuery(String newQuery) {
-        return new UiState(packs, selectedPackId, tab, filter, newQuery, expandedRow, sheet);
+        return new UiState(packs, selectedPackId, tab, filter, newQuery, expandedRow, sheet, toast);
     }
 
     UiState withExpandedRow(String file) {
-        return new UiState(packs, selectedPackId, tab, filter, query, file, sheet);
+        return new UiState(packs, selectedPackId, tab, filter, query, file, sheet, toast);
+    }
+
+    UiState withToast(String text) {
+        return new UiState(packs, selectedPackId, tab, filter, query, expandedRow, sheet,
+            new Toast(text, toast == null ? 1 : toast.id() + 1));
+    }
+
+    /** True while any pack other than {@code packId} is writing files. */
+    public boolean anotherPackApplying(String packId) {
+        return applyingPack().map(pack -> !pack.packId().equals(packId)).orElse(false);
+    }
+
+    public Optional<PackUiState> applyingPack() {
+        return packs.values().stream().filter(pack -> pack.phase() == PackPhase.APPLYING).findFirst();
     }
 
     UiState withSheet(Sheet newSheet) {
-        return new UiState(packs, selectedPackId, tab, filter, query, expandedRow, newSheet);
+        return new UiState(packs, selectedPackId, tab, filter, query, expandedRow, newSheet, toast);
     }
 }

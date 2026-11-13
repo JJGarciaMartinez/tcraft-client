@@ -1,10 +1,12 @@
-package hopsync.desktop.ui;
+package hopsync.desktop.screens.pack;
 
 import hopsync.core.sync.SyncPlan;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.PackPhase;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.RowStatus;
+import hopsync.desktop.ui.ModInfo;
+import hopsync.desktop.ui.StatusType;
 
 import java.util.ArrayList;
 import java.util.List;

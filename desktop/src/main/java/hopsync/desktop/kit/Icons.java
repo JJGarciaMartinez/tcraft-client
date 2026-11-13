@@ -1,5 +1,6 @@
 package hopsync.desktop.kit;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.icons.FlatAbstractIcon;
 
 import javax.swing.Icon;
@@ -40,12 +41,19 @@ public final class Icons {
         return new GlyphIcon(glyph, size, color);
     }
 
-    private static final class GlyphIcon extends FlatAbstractIcon {
+    // Swing only greys out image icons by itself; this hands it the same glyph in the disabled color
+    private static final class GlyphIcon extends FlatAbstractIcon implements FlatLaf.DisabledIconProvider {
         private final Glyph glyph;
 
         GlyphIcon(Glyph glyph, int size, Color color) {
             super(size, size, color);
             this.glyph = glyph;
+        }
+
+        @Override
+        public Icon getDisabledIcon() {
+            Color disabled = UIManager.getColor("Label.disabledForeground");
+            return new GlyphIcon(glyph, width, disabled != null ? disabled : Palette.textFaint());
         }
 
         @Override

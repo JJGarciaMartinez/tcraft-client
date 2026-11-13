@@ -19,6 +19,12 @@ public final class Palette {
     /** Sunken areas: text fields, tracks. */
     public static Color well() { return color("HopSync.well", 0x0C0E0F); }
     public static Color edge() { return color("HopSync.edge", 0x3B4147); }
+    /** Separators between areas. */
+    public static Color line() { return color("HopSync.line", 0x31363B); }
+    public static Color sidebar() { return color("HopSync.sidebar", 0x101214); }
+    public static Color statusBar() { return color("HopSync.statusBar", 0x0F1113); }
+    /** Face of raised elements that are not buttons, such as the selected pack. */
+    public static Color raised() { return color("HopSync.raised", 0x2A2F33); }
 
     public static Color text() { return color("HopSync.text", 0xECEEEB); }
     public static Color textSecondary() { return color("HopSync.textSecondary", 0x9AA1A6); }

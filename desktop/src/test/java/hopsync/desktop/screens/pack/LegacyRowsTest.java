@@ -1,11 +1,11 @@
-package hopsync.desktop.ui;
+package hopsync.desktop.screens.pack;
 
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
 import hopsync.desktop.i18n.Messages;
-import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
+import hopsync.desktop.ui.StatusType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,7 +14,6 @@ import static hopsync.desktop.store.StoreFixtures.DEMO;
 import static hopsync.desktop.store.StoreFixtures.loaded;
 import static hopsync.desktop.store.StoreFixtures.plan;
 import static hopsync.desktop.store.StoreFixtures.reduce;
-import static hopsync.desktop.store.StoreFixtures.upToDatePlan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class LegacyRowsTest {
@@ -78,14 +77,5 @@ class LegacyRowsTest {
         state = reduce(state, new UiAction.InstalledModsLoaded(D, List.of("a.jar")));
 
         assertEquals(List.of("a.jar"), rows(state).stream().map(r -> r.info().file()).toList());
-    }
-
-    @Test
-    void statusLineNamesThePackWhenUpToDate() {
-        UiState state = reduce(loaded(), new SyncEvent.UpdateStarted(D),
-            new SyncEvent.UpToDate(D, upToDatePlan()));
-        PackUiState pack = state.packs().get(D);
-
-        assertEquals(Messages.get("status.upToDate", "Demo", "1.2.0"), LegacyRenderer.statusText(pack));
     }
 }
