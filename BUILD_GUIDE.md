@@ -167,10 +167,10 @@ app.vendor=ModInstallerCraft
 The project builds with Gradle (wrapper included) on Java 21:
 
 ```bash
-./gradlew build   # compiles, runs the JUnit tests and writes build/libs/TCraftClient.jar
+./gradlew build   # compiles, runs the JUnit tests and writes desktop/build/libs/TCraftClient.jar
 ```
 
-`build-jar.sh` runs this step for you. Resources (`src/main/resources/`) and the root
+`build-jar.sh` runs this step for you. Resources (`desktop/src/main/resources/`) and the root
 `version.properties` are packaged into the JAR by Gradle.
 
 ---
@@ -194,8 +194,9 @@ The `dist/` directory contains the executable JAR version of your application, i
    **Note:** Uses `app.version` (the full version with phase identifiers) for filenames and user-facing content.
 
 2. **Runs** `./gradlew build`, which compiles the sources, runs the tests and packages
-   `src/main/resources/` plus `version.properties` into `build/libs/TCraftClient.jar`.
-   **Important:** `version.properties` is embedded in the JAR for runtime access by `AppConfig.java`.
+   `desktop/src/main/resources/` plus `version.properties` into `desktop/build/libs/TCraftClient.jar`,
+   merging the `core` and `platform` modules and FlatLaf into one self-contained JAR.
+   **Important:** `version.properties` is embedded in the JAR for runtime access by `AppVersion.java`.
 
 3. **Copies** the JAR to `dist/TCraftClient.jar`
 
