@@ -1,6 +1,6 @@
 package hopsync.desktop.ui;
 
-import hopsync.desktop.config.AppProperties;
+import hopsync.desktop.kit.Palette;
 import hopsync.platform.fs.FileSystemService;
 
 import javax.swing.*;
@@ -49,7 +49,7 @@ public final class LauncherUI extends JFrame {
         setLocationRelativeTo(null);
 
         // Configurar tema oscuro
-        setBackground(AppProperties.getBackgroundDark());
+        setBackground(Palette.background());
 
         // Crear paneles
         headerPanel = new HeaderPanel(fileSystemService);

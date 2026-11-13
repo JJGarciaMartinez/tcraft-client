@@ -1,13 +1,13 @@
 package hopsync.desktop.ui;
 
-import hopsync.desktop.config.AppVersion;
-import hopsync.desktop.config.AppProperties;
-import hopsync.desktop.config.AssetPaths;
 import hopsync.core.manifest.PackInfo;
-import hopsync.platform.fs.FileSystemService;
-import hopsync.platform.system.SystemInfoService;
+import hopsync.desktop.config.AppVersion;
+import hopsync.desktop.config.AssetPaths;
+import hopsync.desktop.kit.Palette;
 import hopsync.desktop.util.FontLoader;
 import hopsync.desktop.util.ImageLoader;
+import hopsync.platform.fs.FileSystemService;
+import hopsync.platform.system.SystemInfoService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -45,7 +45,7 @@ public final class HeaderPanel extends JPanel {
         Font bigMinecraftFont = FontLoader.getMinecraftFont(20f);
 
         setLayout(new BorderLayout());
-        setBackground(AppProperties.getBackgroundDarker());
+        setBackground(Palette.surface());
         setBorder(BorderFactory.createEmptyBorder(35, 35, 35, 35));
 
         // Set up the top panel
@@ -65,7 +65,7 @@ public final class HeaderPanel extends JPanel {
         // Set up the subtitle label
         JLabel subtitleLabel = new JLabel("Mod & Config Manager - " + AppVersion.VERSION_APP);
         subtitleLabel.setFont(smallMinecraftFont);
-        subtitleLabel.setForeground(AppProperties.getTextSecondary());
+        subtitleLabel.setForeground(Palette.textSecondary());
         subtitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add components to the banner panel
@@ -82,7 +82,7 @@ public final class HeaderPanel extends JPanel {
         // Add system info components
         JLabel systemInfoTitle = new JLabel("Información del Sistema");
         systemInfoTitle.setFont(bigMinecraftFont);
-        systemInfoTitle.setForeground(AppProperties.getAccentWarning());
+        systemInfoTitle.setForeground(Palette.update());
         systemInfoTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add system info labels
@@ -91,14 +91,14 @@ public final class HeaderPanel extends JPanel {
         JLabel osLabel = new JLabel(" Sistema: " + osName);
         osLabel.setIcon(systemIcon);
         osLabel.setFont(normalMinecraftFont);
-        osLabel.setForeground(AppProperties.getTextSecondary());
+        osLabel.setForeground(Palette.textSecondary());
         osLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add Java version label
         String javaVersion = System.getProperty("java.version");
         JLabel javaVersionLabel = new JLabel("Java: " + javaVersion);
         javaVersionLabel.setFont(normalMinecraftFont);
-        javaVersionLabel.setForeground(AppProperties.getTextSecondary());
+        javaVersionLabel.setForeground(Palette.textSecondary());
         javaVersionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add mods' path label
@@ -106,7 +106,7 @@ public final class HeaderPanel extends JPanel {
         modPathLabel = new JLabel("Ruta: " + gamePath);
         modPathLabel.setToolTipText(gamePath);
         modPathLabel.setFont(normalMinecraftFont);
-        modPathLabel.setForeground(AppProperties.getTextTertiary());
+        modPathLabel.setForeground(Palette.textFaint());
         modPathLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         // Add components to the system info panel
@@ -121,17 +121,17 @@ public final class HeaderPanel extends JPanel {
         // Pack info, filled once the manifest is fetched
         packLabel = new JLabel("Pack: cargando…");
         packLabel.setFont(normalMinecraftFont);
-        packLabel.setForeground(AppProperties.getTextPrimary());
+        packLabel.setForeground(Palette.text());
         packLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         packDetailLabel = new JLabel(" ");
         packDetailLabel.setFont(normalMinecraftFont);
-        packDetailLabel.setForeground(AppProperties.getTextSecondary());
+        packDetailLabel.setForeground(Palette.textSecondary());
         packDetailLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         serverLabel = new JLabel();
         serverLabel.setFont(normalMinecraftFont);
-        serverLabel.setForeground(AppProperties.getTextSecondary());
+        serverLabel.setForeground(Palette.textSecondary());
         copyIpButton = new JButton("Copiar IP");
         copyIpButton.setFont(smallMinecraftFont);
         copyIpButton.setFocusPainted(false);
@@ -169,7 +169,7 @@ public final class HeaderPanel extends JPanel {
         // Mods status label
         modStatusLabel = new JLabel("0 mods instalados");
         modStatusLabel.setFont(normalMinecraftFont);
-        modStatusLabel.setForeground(AppProperties.getAccentWarning());
+        modStatusLabel.setForeground(Palette.update());
 
         // Add components to the stats panel
         statsPanel.add(statusIconLabel);
@@ -212,7 +212,7 @@ public final class HeaderPanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
             packLabel.setText("Pack: " + pack.name() + " " + pack.version());
             packDetailLabel.setText("Minecraft " + pack.minecraft() + " · " + pack.loader());
-            packLabel.setForeground(AppProperties.getTextPrimary());
+            packLabel.setForeground(Palette.text());
             serverIp = pack.serverIp();
             boolean hasIp = serverIp != null && !serverIp.isBlank();
             serverLabel.setText("Servidor: " + (hasIp ? serverIp : ""));
@@ -228,7 +228,7 @@ public final class HeaderPanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
             packLabel.setText("Pack: " + message);
             packDetailLabel.setText(" ");
-            packLabel.setForeground(AppProperties.getAccentError());
+            packLabel.setForeground(Palette.error());
             serverLabel.setVisible(false);
             copyIpButton.setVisible(false);
         });

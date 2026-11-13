@@ -1,14 +1,13 @@
 package hopsync.desktop.ui;
 
 import hopsync.core.failure.SyncFailures;
-import hopsync.desktop.i18n.Messages;
-
-import hopsync.desktop.config.AppProperties;
-import hopsync.platform.settings.UserSettings;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.manifest.PackInfo;
+import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.Palette;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.settings.SettingsService;
+import hopsync.platform.settings.UserSettings;
 
 import javax.swing.*;
 import java.awt.*;
@@ -181,7 +180,7 @@ public final class SettingsDialog extends JDialog {
 
     private void showResult(String text, boolean error) {
         checkResult.setText(text);
-        checkResult.setForeground(error ? AppProperties.getAccentError() : UIManager.getColor("Label.foreground"));
+        checkResult.setForeground(error ? Palette.error() : UIManager.getColor("Label.foreground"));
         pack();
     }
 }

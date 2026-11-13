@@ -1,15 +1,12 @@
 package hopsync.desktop.ui;
 
-import hopsync.desktop.config.AppProperties;
-import hopsync.desktop.config.AssetPaths;
-import hopsync.desktop.util.FontLoader;
-import hopsync.desktop.util.ImageLoader;
+import hopsync.desktop.kit.ButtonStyle;
+import hopsync.desktop.kit.Icons;
+import hopsync.desktop.kit.Palette;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 
 /**
  * The ControlPanel class extends JPanel and serves as a custom control panel
@@ -26,8 +23,6 @@ public final class ControlPanel extends JPanel {
     private final JButton refreshButton;
     private final JButton settingsButton;
     private final JLabel statusLabel;
-    private final ImageIcon updateIcon;
-    private final ImageIcon cancelIcon;
     private final JProgressBar progressBar;
     private ActionListener updateListener;
     private ActionListener cancelListener;
@@ -38,12 +33,11 @@ public final class ControlPanel extends JPanel {
      * The ControlPanel is a custom JPanel that serves as a user interface component for displaying
      * and managing tasks related to updates. It includes the following elements:
      * <p>
-     * - A progress bar to display the update progress. Initially hidden and configured with specific
-     *   styling and dimensions. It uses a custom Minecraft-style font for its appearance.
-     * - A set of buttons:
-     *   - Update button: Styled with a custom icon, manages update actions, and includes a
-     *     press effect for visual feedback.
-     *   - Refresh button: Styled similarly to the update button and includes the same press effect.
+     * - A progress bar to display the update progress. Initially hidden.
+     * - A set of raised buttons:
+     *   - Update button: the primary action; turns into a danger "Cancelar" button while updating.
+     *   - Refresh button: an icon button that reloads the installed mods.
+     *   - Settings button: opens the pack settings.
      * - A status label to display textual information about the current operation or state.
      * - Panels are organized using BorderLayout to separate the progress bar, buttons, and status label.
      *   The layout and colors are customized to give a visually appealing and consistent design.
@@ -53,9 +47,9 @@ public final class ControlPanel extends JPanel {
      */
     public ControlPanel() {
         setLayout(new BorderLayout(10, 10));
-        setBackground(AppProperties.getBackgroundDark());
+        setBackground(Palette.surface());
         setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, AppProperties.getBorderColor()),
+                BorderFactory.createMatteBorder(1, 0, 0, 0, Palette.edge()),
                 BorderFactory.createEmptyBorder(15, 20, 15, 20)
         ));
 
@@ -63,12 +57,6 @@ public final class ControlPanel extends JPanel {
         progressBar = new JProgressBar(0, 100);
         progressBar.setValue(0);
         progressBar.setStringPainted(true);
-        progressBar.setFont(FontLoader.getMinecraftFont(11f));
-        progressBar.setForeground(AppProperties.getAccentSuccess());
-        progressBar.setBackground(AppProperties.getBackgroundMedium());
-        progressBar.setBorder(BorderFactory.createLineBorder(AppProperties.getBorderColor(), 1));
-        progressBar.setBorderPainted(true);
-        progressBar.setUI(new javax.swing.plaf.basic.BasicProgressBarUI());
         progressBar.setPreferredSize(new Dimension(0, 20));
         progressBar.setVisible(false); // Oculta por defecto
 
@@ -76,45 +64,16 @@ public final class ControlPanel extends JPanel {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         buttonPanel.setOpaque(false);
 
-        // Update and cancel buttons style
-        updateIcon = ImageLoader.loadImageIcon(AssetPaths.UPDATE_BUTTON);
-        if (updateIcon != null) {
-            updateIcon.setImage(updateIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
-        }
-        cancelIcon = ImageLoader.loadImageIcon(AssetPaths.CANCEL_BUTTON);
-        if (cancelIcon != null) {
-            cancelIcon.setImage(cancelIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
-        }
         updateButton = new JButton();
-        showUpdateButtonFace(updateIcon, "Actualizar");
-        updateButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        updateButton.setFocusPainted(false);
-        updateButton.setBorderPainted(false);
-        updateButton.setContentAreaFilled(false);
-        addPressEffect(updateButton);
+        showUpdateButtonFace(false);
 
-        // Refresh button style
-        ImageIcon refreshIcon = ImageLoader.loadImageIcon(AssetPaths.REFRESH_BUTTON);
-        if (refreshIcon != null) {
-            refreshIcon.setImage(refreshIcon.getImage().getScaledInstance(-1, 35, Image.SCALE_SMOOTH));
-        }
-        refreshButton = new JButton(refreshIcon);
-        if (refreshIcon != null) {
-            refreshButton.setPreferredSize(new Dimension(refreshIcon.getIconWidth(), refreshIcon.getIconHeight()));
-        }
-        refreshButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        refreshButton.setFocusPainted(false);
-        refreshButton.setBorderPainted(false);
-        addPressEffect(refreshButton);
+        refreshButton = new JButton(Icons.get(Icons.Glyph.REFRESH));
+        refreshButton.setToolTipText("Recargar la lista de mods");
+        refreshButton.getAccessibleContext().setAccessibleName("Recargar la lista de mods");
+        ButtonStyle.apply(refreshButton, ButtonStyle.SECONDARY);
 
-        // Settings button (text, no icon asset yet)
-        settingsButton = new JButton("Ajustes");
-        settingsButton.setFont(FontLoader.getMinecraftFont(12f));
-        settingsButton.setForeground(AppProperties.getTextPrimary());
-        settingsButton.setBackground(AppProperties.getBackgroundMedium());
-        settingsButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        settingsButton.setFocusPainted(false);
-        settingsButton.setPreferredSize(new Dimension(settingsButton.getPreferredSize().width, 35));
+        settingsButton = new JButton("Ajustes", Icons.get(Icons.Glyph.GEAR));
+        ButtonStyle.apply(settingsButton, ButtonStyle.SECONDARY);
 
         // Add buttons to the panel
         buttonPanel.add(updateButton);
@@ -123,8 +82,7 @@ public final class ControlPanel extends JPanel {
 
         // Status label in the right position
         statusLabel = new JLabel("Listo para actualizar");
-        statusLabel.setFont(FontLoader.getMinecraftFont(12f));
-        statusLabel.setForeground(AppProperties.getTextSecondary());
+        statusLabel.setForeground(Palette.textSecondary());
         // Takes the space left of the buttons; long messages end in "…" and show in full as a tooltip
         statusLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         statusLabel.setMinimumSize(new Dimension(0, 0));
@@ -201,7 +159,7 @@ public final class ControlPanel extends JPanel {
         SwingUtilities.invokeLater(() -> {
             if (inProgress) {
                 // Change to cancel mode
-                showUpdateButtonFace(cancelIcon, "Cancelar");
+                showUpdateButtonFace(true);
                 // Remove update listener and add cancel listener
                 for (ActionListener al : updateButton.getActionListeners()) {
                     updateButton.removeActionListener(al);
@@ -209,7 +167,7 @@ public final class ControlPanel extends JPanel {
                 updateButton.addActionListener(cancelListener);
             } else {
                 // Change to update mode
-                showUpdateButtonFace(updateIcon, "Actualizar");
+                showUpdateButtonFace(false);
                 // Remove cancel listener and add update listener
                 for (ActionListener al : updateButton.getActionListeners()) {
                     updateButton.removeActionListener(al);
@@ -285,35 +243,10 @@ public final class ControlPanel extends JPanel {
     }
 
     /**
-     * Shows the button image, or a text label when the image is missing from the JAR so the button stays usable.
+     * Shows the update button as the primary "Actualizar" action, or as a danger "Cancelar" while updating.
      */
-    private void showUpdateButtonFace(ImageIcon icon, String fallbackText) {
-        updateButton.setIcon(icon);
-        if (icon != null) {
-            updateButton.setText(null);
-            updateButton.setPreferredSize(new Dimension(icon.getIconWidth(), icon.getIconHeight()));
-        } else {
-            updateButton.setText(fallbackText);
-            updateButton.setPreferredSize(null);
-        }
-    }
-
-    /**
-     * Adds a press effect to the given button, creating a visual feedback
-     * when the button is pressed by shifting its position slightly.
-     *
-     * @param button the JButton to apply the press effect to
-     */
-    private void addPressEffect(JButton button) {
-        button.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent evt) {
-                button.setLocation(button.getX() + 1, button.getY() + 1);
-            }
-            @Override
-            public void mouseReleased(MouseEvent evt) {
-                button.setLocation(button.getX() - 1, button.getY() - 1);
-            }
-        });
+    private void showUpdateButtonFace(boolean cancel) {
+        updateButton.setText(cancel ? "Cancelar" : "Actualizar");
+        ButtonStyle.apply(updateButton, cancel ? ButtonStyle.DANGER : ButtonStyle.PRIMARY);
     }
 }

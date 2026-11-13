@@ -1,11 +1,11 @@
 package hopsync.desktop.ui;
 
-import hopsync.desktop.config.AppProperties;
-import hopsync.desktop.i18n.Messages;
 import hopsync.core.event.UpdateEvent;
-import hopsync.desktop.ui.ModInfo;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.sync.SyncPlan;
+import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.Palette;
+import hopsync.desktop.ui.ModInfo;
 
 import javax.swing.SwingUtilities;
 
@@ -80,11 +80,11 @@ public class UpdateEventHandler {
                     ui.getModListPanel().setModCompleted(e.file(), e.success());
                 } else {
                     ui.getModListPanel().setModStatus(e.file(), StatusType.ERROR, Messages.failure(e.failure()),
-                        AppProperties.getAccentError());
+                        Palette.error());
                 }
             }
             case UpdateEvent.ModRemoved e -> ui.getModListPanel().setModStatus(e.file(), StatusType.WARNING,
-                Messages.get("mod.removed"), AppProperties.getAccentWarning());
+                Messages.get("mod.removed"), Palette.update());
             // Can be shown in a log panel if needed
             case UpdateEvent.LogMessage e -> { }
         }
@@ -98,14 +98,14 @@ public class UpdateEventHandler {
             String file = action.mod().file();
             switch (action.change()) {
                 case UP_TO_DATE -> list.setModAlreadyInstalled(file);
-                case NEW -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.new"), AppProperties.getAccentInfo());
+                case NEW -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.new"), Palette.added());
                 case UPDATE -> list.setModStatus(file, StatusType.PROCESSING, Messages.get("mod.willUpdate"),
-                    AppProperties.getAccentWarningLight());
+                    Palette.update());
             }
         }
         for (String file : plan.removals()) {
             list.addModSync(ModInfo.installed(file));
-            list.setModStatus(file, StatusType.WARNING, Messages.get("mod.willRemove"), AppProperties.getAccentWarning());
+            list.setModStatus(file, StatusType.WARNING, Messages.get("mod.willRemove"), Palette.update());
         }
     }
 }

@@ -6,8 +6,9 @@ import hopsync.core.failure.SyncFailures;
 import hopsync.core.manifest.PackInfo;
 import hopsync.core.session.UpdateCoordinator;
 import hopsync.desktop.AppContainer;
-import hopsync.desktop.config.AppProperties;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.HopSyncDark;
+import hopsync.desktop.kit.Palette;
 import hopsync.platform.fs.FileSystemService;
 import hopsync.platform.manifest.ManifestService;
 import hopsync.platform.settings.SettingsService;
@@ -161,7 +162,7 @@ public class UIController {
             }
             for (var mod : mods) {
                 ui.getModListPanel().addModSync(mod);
-                ui.getModListPanel().setModStatus(mod.file(), StatusType.IN_SYSTEM, Messages.get("mod.installed"), AppProperties.getAccentSuccess());
+                ui.getModListPanel().setModStatus(mod.file(), StatusType.IN_SYSTEM, Messages.get("mod.installed"), Palette.accent());
             }
             showModCount(mods.size());
         });
@@ -194,7 +195,7 @@ public class UIController {
      * Creates and displays the launcher UI with a new controller instance.
      */
     public static void create(AppContainer container) {
-        Theme.install();
+        HopSyncDark.setup();
         LauncherUI ui = new LauncherUI(container.fileSystemService());
         ui.setVisible(true);
         new UIController(ui, container);

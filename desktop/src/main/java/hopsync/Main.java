@@ -3,9 +3,9 @@ package hopsync;
 import hopsync.desktop.AppContainer;
 import hopsync.desktop.config.AppVersion;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.logging.Logging;
 import hopsync.desktop.ui.DisplayScaling;
-import hopsync.desktop.ui.Theme;
 import hopsync.desktop.ui.UIController;
 import hopsync.platform.settings.SettingsStore;
 import hopsync.platform.system.InstanceLock;
@@ -35,7 +35,7 @@ public class Main {
         if (!acquireInstanceLock(dataDir)) {
             LOG.log(System.Logger.Level.INFO, "Another HopSync instance is running, exiting");
             SwingUtilities.invokeLater(() -> {
-                Theme.install();
+                HopSyncDark.setup();
                 JOptionPane.showMessageDialog(null, Messages.get("app.alreadyRunning"), "HopSync",
                     JOptionPane.INFORMATION_MESSAGE);
             });
