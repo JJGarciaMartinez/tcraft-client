@@ -19,7 +19,8 @@ class DefaultGameDirTest {
 
     @Test
     void launchedFromModsFolderUsesItsParent() {
-        assertEquals(Path.of("/games/instance"),
-            DefaultGameDir.forSystem("Linux", "/home/p", Path.of("/games/instance/mods")));
+        // Absolute on the machine running the test: on Windows "/games" alone has no drive letter
+        Path instance = Path.of("/games/instance").toAbsolutePath();
+        assertEquals(instance, DefaultGameDir.forSystem("Linux", "/home/p", instance.resolve("mods")));
     }
 }
