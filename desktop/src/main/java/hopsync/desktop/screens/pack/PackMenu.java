@@ -36,10 +36,11 @@ final class PackMenu extends JPopupMenu {
 
     void setPack(PackUiState pack) {
         packId = pack.packId();
-        boolean busy = pack.phase().isBusy();
-        check.setEnabled(!busy);
-        settings.setEnabled(!busy);
-        remove.setEnabled(!busy);
+        check.setEnabled(!pack.phase().isBusy());
+        // A pack not yet installed can still move or go; only one writing files cannot
+        boolean writing = pack.phase().isWriting();
+        settings.setEnabled(!writing);
+        remove.setEnabled(!writing);
     }
 
     private UiAction forPack(Function<String, UiAction> action) {

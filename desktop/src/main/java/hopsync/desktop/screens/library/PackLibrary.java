@@ -158,6 +158,7 @@ public final class PackLibrary extends JPanel {
         try {
             title.setText(Messages.get("library.title", state.packs().size()).toUpperCase(Locale.ROOT));
             List<PackUiState> packs = new ArrayList<>(state.packs().values());
+            cell.setNames(LibraryStatus.names(packs));
             if (!sameEntries(packs)) {
                 model.clear();
                 model.addAll(packs);

@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Side effects of the sheets: checking a pack link, finding launcher instances, telling which pack uses a
@@ -41,14 +42,18 @@ final class SheetEffects {
     private final Path settingsFile;
     private final Runnable reloadPacks;
     private final Consumer<String> checkPack;
+    private final Consumer<String> dropUpdate;
+    private final Predicate<String> writing;
 
     /**
      * @param reloadPacks reloads the registry into the store after a save
      * @param checkPack   starts checking a newly added pack
+     * @param dropUpdate  drops a pack's check, plan or place in the queue, made for its old link or folder
+     * @param writing     whether a pack is writing files right now, when its settings cannot change
      */
     SheetEffects(Store store, PackRegistry registry, ManifestService manifests, InstanceFinder instances,
                  java.util.concurrent.Executor background, Path settingsFile, Runnable reloadPacks,
-                 Consumer<String> checkPack) {
+                 Consumer<String> checkPack, Consumer<String> dropUpdate, Predicate<String> writing) {
         this.store = store;
         this.registry = registry;
         this.manifests = manifests;
@@ -57,6 +62,8 @@ final class SheetEffects {
         this.settingsFile = settingsFile;
         this.reloadPacks = reloadPacks;
         this.checkPack = checkPack;
+        this.dropUpdate = dropUpdate;
+        this.writing = writing;
     }
 
     void run(UiAction action, UiState state) {
@@ -142,9 +149,18 @@ final class SheetEffects {
         // A different link must have been checked: it may be another pack altogether
         if (newLink && !(settings.link() instanceof LinkCheck.Valid valid && valid.url().equals(url))) return;
         Path folder = settings.folder().path();
+        boolean moved = newLink || !folder.equals(pack.gameDir());
         background.execute(() -> {
             try {
+                if (writing.test(pack.id())) {
+                    // The sheet disables saving; this covers an apply that started in between
+                    store.dispatch(new UiAction.ShowToast(Messages.get("toast.waitForApply")));
+                    return;
+                }
                 checkWritable(folder);
+                if (moved) {
+                    dropUpdate.accept(pack.id());
+                }
                 Pack changed = newLink ? pack.withManifestUrl(url).withName("") : pack;
                 registry.update(changed.withGameDir(folder));
                 store.dispatch(new UiAction.SheetSaved());

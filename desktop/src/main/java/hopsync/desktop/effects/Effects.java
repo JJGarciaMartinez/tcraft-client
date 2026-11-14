@@ -7,6 +7,7 @@ import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.session.PackSessions;
+import hopsync.core.session.UpdateState;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.PackUiState;
@@ -58,7 +59,9 @@ public final class Effects {
         this.clock = clock;
         this.exit = exit;
         this.sheets = new SheetEffects(store, registry, manifests, instances, background, settingsFile,
-            this::reloadPacks, packId -> sessions.get(packId).startUpdate());
+            this::reloadPacks, packId -> sessions.get(packId).startUpdate(),
+            packId -> sessions.get(packId).cancelUpdate(),
+            packId -> sessions.get(packId).getPhase() == UpdateState.Phase.APPLYING);
     }
 
     /** Starts listening to the core and the store, then loads the packs. */
@@ -154,6 +157,11 @@ public final class Effects {
     }
 
     private void removePack(String packId, UiState state) {
+        if (sessions.get(packId).getPhase() == UpdateState.Phase.APPLYING) {
+            // The sheet disables the button; this covers an apply that started in between
+            store.dispatch(new UiAction.ShowToast(Messages.get("toast.waitForApply")));
+            return;
+        }
         String name = Optional.ofNullable(state.packs().get(packId)).map(PackUiState::displayName).orElse(packId);
         sessions.drop(packId);
         Optional<String> link = registry.find(packId).map(Pack::manifestUrl);

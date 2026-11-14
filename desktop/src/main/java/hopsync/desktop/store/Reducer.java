@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -70,7 +71,7 @@ public final class Reducer {
                 case null, default -> state;
             };
             case UiAction.CheckLink a -> checkLink(state);
-            case UiAction.LinkChecked a -> withLinkResult(state, a.url(), valid(a.url(), a.manifest()));
+            case UiAction.LinkChecked a -> withLinkResult(state, a.url(), valid(state, a.url(), a.manifest()));
             case UiAction.LinkFailed a -> withLinkResult(state, a.url(),
                 new LinkCheck.Invalid(LinkCheck.Problem.UNREADABLE, a.failure()));
             case UiAction.WizardNext a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 1
@@ -167,8 +168,8 @@ public final class Reducer {
 
     private static UiState openPackSettings(UiState state, Sheet.PackSettings.Section section) {
         PackUiState pack = state.selected().orElse(null);
-        if (pack == null || pack.phase().isBusy()) {
-            // The pack being updated keeps its link and folder until it finishes
+        if (pack == null || pack.phase().isWriting()) {
+            // The pack writing files keeps its link and folder until it finishes
             return state;
         }
         GameFolder folder = new GameFolder(GameFolder.Kind.OTHER, null, pack.gameDir(), pack.installed().jars().size(),
@@ -182,29 +183,17 @@ public final class Reducer {
      * being checked and Effects fetches it.
      */
     private static UiState checkLink(UiState state) {
-        String url;
-        String ownPackId;
-        switch (state.sheet()) {
-            case Sheet.AddPack wizard -> {
-                url = wizard.url().trim();
-                ownPackId = null;
-            }
-            case Sheet.PackSettings settings -> {
-                url = settings.url().trim();
-                ownPackId = settings.packId();
-            }
-            case null, default -> {
-                return state;
-            }
-        }
+        String url = switch (state.sheet()) {
+            case Sheet.AddPack wizard -> wizard.url().trim();
+            case Sheet.PackSettings settings -> settings.url().trim();
+            case null, default -> null;
+        };
+        if (url == null) return state;
         LinkCheck result;
         if (url.isEmpty()) {
             result = new LinkCheck.Invalid(LinkCheck.Problem.EMPTY, null);
         } else if (!url.startsWith("https://")) {
             result = new LinkCheck.Invalid(LinkCheck.Problem.NOT_HTTPS, null);
-        } else if (state.packs().values().stream()
-                .anyMatch(pack -> pack.manifestUrl().equals(url) && !pack.packId().equals(ownPackId))) {
-            result = new LinkCheck.Invalid(LinkCheck.Problem.ALREADY_ADDED, null);
         } else {
             result = new LinkCheck.Checking(url);
         }
@@ -236,10 +225,16 @@ public final class Reducer {
         };
     }
 
-    private static LinkCheck valid(String url, Manifest manifest) {
+    /** The same pack may be added again for another folder; the copies are listed so the player knows. */
+    private static LinkCheck valid(UiState state, String url, Manifest manifest) {
         long bytes = manifest.mods().stream().mapToLong(ModEntry::size).sum()
             + manifest.configs().stream().mapToLong(ConfigEntry::size).sum();
-        return new LinkCheck.Valid(url, manifest.pack(), manifest.mods().size(), bytes);
+        String ownPackId = state.sheet() instanceof Sheet.PackSettings settings ? settings.packId() : null;
+        List<Path> copies = state.packs().values().stream()
+            .filter(pack -> pack.manifestUrl().equals(url) && !pack.packId().equals(ownPackId))
+            .map(PackUiState::gameDir)
+            .toList();
+        return new LinkCheck.Valid(url, manifest.pack(), manifest.mods().size(), bytes, copies);
     }
 
     private static UiState chooseFolder(UiState state, Path path) {

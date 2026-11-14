@@ -344,6 +344,19 @@ class ReducerTest {
     }
 
     @Test
+    void aPackNotYetInstalledCanStillBeEditedOrRemoved() {
+        UiState checking = reduce(loaded(), new SyncEvent.UpdateStarted(D));
+        UiState review = reduce(checking, new SyncEvent.PlanReady(D, plan()));
+        UiState queued = reduce(review, new SyncEvent.Queued(D));
+
+        for (UiState state : List.of(checking, review, queued)) {
+            assertInstanceOf(Sheet.PackSettings.class, reduce(state, new UiAction.OpenSettings()).sheet());
+            assertEquals(Sheet.PackSettings.Section.REMOVE, assertInstanceOf(Sheet.PackSettings.class,
+                reduce(state, new UiAction.AskRemovePack()).sheet()).section());
+        }
+    }
+
+    @Test
     void closingASheetClosesIt() {
         UiState open = reduce(loaded(), new UiAction.OpenSettings());
 
@@ -401,8 +414,6 @@ class ReducerTest {
         assertEquals(LinkCheck.Problem.EMPTY, problem(reduce(open, new UiAction.CheckLink())));
         assertEquals(LinkCheck.Problem.NOT_HTTPS, problem(reduce(open,
             new UiAction.SetLinkUrl("http://example.org/pack.json"), new UiAction.CheckLink())));
-        assertEquals(LinkCheck.Problem.ALREADY_ADDED, problem(reduce(open,
-            new UiAction.SetLinkUrl(" " + DEMO.manifestUrl() + " "), new UiAction.CheckLink())));
         assertEquals(new LinkCheck.Checking("https://example.org/new.json"), wizard(reduce(open,
             new UiAction.SetLinkUrl("https://example.org/new.json "), new UiAction.CheckLink())).link());
     }
@@ -419,6 +430,26 @@ class ReducerTest {
         assertEquals(INFO, valid.info());
         assertEquals(manifest().mods().size(), valid.mods());
         assertEquals(2, wizard(reduce(state, new UiAction.WizardNext())).step());
+    }
+
+    @Test
+    void aPackAlreadyAddedCanBeAddedAgainForAnotherFolder() {
+        UiState state = linkChecked(DEMO.manifestUrl());
+
+        LinkCheck.Valid valid = assertInstanceOf(LinkCheck.Valid.class, wizard(state).link());
+        assertEquals(List.of(DEMO.gameDir()), valid.copies());
+        assertEquals(2, wizard(reduce(state, new UiAction.WizardNext())).step());
+        assertEquals(List.of(), assertInstanceOf(LinkCheck.Valid.class,
+            wizard(linkChecked("https://example.org/new.json")).link()).copies());
+    }
+
+    @Test
+    void aPackDoesNotCountAsACopyOfItself() {
+        UiState state = reduce(loaded(), new UiAction.OpenSettings(), new UiAction.CheckLink(),
+            new UiAction.LinkChecked(DEMO.manifestUrl(), manifest()));
+
+        Sheet.PackSettings settings = assertInstanceOf(Sheet.PackSettings.class, state.sheet());
+        assertEquals(List.of(), assertInstanceOf(LinkCheck.Valid.class, settings.link()).copies());
     }
 
     @Test

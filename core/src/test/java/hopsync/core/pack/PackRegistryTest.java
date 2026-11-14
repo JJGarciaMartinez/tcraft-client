@@ -46,6 +46,18 @@ class PackRegistryTest {
     }
 
     @Test
+    void copiesOfOnePackNeedTheirOwnFolders() throws IOException {
+        Pack first = registry.add(URL, dir.resolve("a"));
+        Pack copy = registry.add(URL, dir.resolve("b"));
+
+        assertEquals(2, registry.packs().size());
+        SyncException e = assertThrows(SyncException.class, () -> registry.update(copy.withGameDir(first.gameDir())));
+        assertInstanceOf(SyncFailure.FolderUsedByPack.class, e.failure());
+        registry.update(copy.withGameDir(dir.resolve("c")));
+        assertEquals(dir.resolve("c"), registry.find(copy.id()).orElseThrow().gameDir());
+    }
+
+    @Test
     void nestedFoldersAreRejectedBothWays() throws IOException {
         registry.add(URL, dir.resolve("instances/one"));
         assertFolderRejected(dir.resolve("instances/one/sub"));

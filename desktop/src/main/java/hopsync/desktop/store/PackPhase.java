@@ -10,4 +10,12 @@ public enum PackPhase {
     public boolean isBusy() {
         return this == CHECKING || this == REVIEW || this == QUEUED || this == APPLYING;
     }
+
+    /**
+     * True only while files are being written. Until then a check, a plan or a place in the queue can be
+     * dropped, so the pack's link and folder can still change and the pack can be removed.
+     */
+    public boolean isWriting() {
+        return this == APPLYING;
+    }
 }

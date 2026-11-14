@@ -114,11 +114,16 @@ final class LinkField extends JPanel {
         return switch (link) {
             case LinkCheck.Unchecked u -> SheetParts.hint(hint);
             case LinkCheck.Checking c -> SheetParts.hint(Messages.get("sheet.link.checkingHint"));
+            case LinkCheck.Valid valid when !valid.copies().isEmpty() -> {
+                JPanel both = SheetParts.column();
+                SheetParts.stack(both, 8, preview(valid), SheetParts.notice(Messages.get("sheet.link.copies",
+                    valid.copies().getFirst()), Palette.added()));
+                yield both;
+            }
             case LinkCheck.Valid valid -> preview(valid);
             case LinkCheck.Invalid invalid -> SheetParts.notice(switch (invalid.problem()) {
                 case EMPTY -> Messages.get("sheet.link.empty");
                 case NOT_HTTPS -> Messages.get("sheet.link.notHttps");
-                case ALREADY_ADDED -> Messages.get("sheet.link.alreadyAdded");
                 case UNREADABLE -> Messages.get("sheet.link.unreadable", Messages.failure(invalid.failure()));
             }, Palette.error());
         };

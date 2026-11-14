@@ -122,6 +122,8 @@ public final class PackSettingsView extends JPanel {
         JButton remove = SheetParts.button("sheet.pack.remove", ButtonStyle.DANGER, dispatch,
             new UiAction.RemovePack(sheet.packId()));
         remove.setIcon(Icons.get(Icons.Glyph.TRASH));
+        // The pack may have started writing files since the sheet opened
+        remove.setEnabled(!pack.phase().isWriting());
         SheetParts.stack(removePane, 12,
             SheetParts.paragraph(Messages.get("sheet.pack.removeBody", pack.displayName()), Palette.text()),
             remove);
@@ -141,7 +143,7 @@ public final class PackSettingsView extends JPanel {
     static boolean canSave(Sheet.PackSettings sheet, PackUiState pack) {
         boolean linkOk = !newLink(sheet, pack)
             || sheet.link() instanceof LinkCheck.Valid valid && valid.url().equals(sheet.url().trim());
-        return linkOk && sheet.folder().isFree();
+        return linkOk && sheet.folder().isFree() && !pack.phase().isWriting();
     }
 
     private static boolean newLink(Sheet.PackSettings sheet, PackUiState pack) {
