@@ -6,6 +6,7 @@ import hopsync.desktop.kit.Palette;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
+import hopsync.desktop.screens.sheets.SheetLayer;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
@@ -16,6 +17,7 @@ import javax.swing.JPanel;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Dimension;
+import java.awt.GridBagLayout;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.nio.file.Path;
@@ -25,7 +27,8 @@ import java.util.function.Consumer;
 
 /**
  * The HopSync window: pack library on the left, the selected pack's header and mods on the right, status
- * bar at the bottom. With no packs it shows the onboarding card instead. Draws only from {@link UiState}.
+ * bar at the bottom. With no packs the add-pack wizard fills it instead; other sheets open on top of it.
+ * Draws only from {@link UiState}.
  */
 public final class MainWindow extends JFrame {
     private static final String ONBOARDING = "onboarding";
@@ -38,11 +41,12 @@ public final class MainWindow extends JFrame {
     private final ModsPanel mods;
     private final StatusBar statusBar;
     private final Toast toast;
-    private final Sheets sheets;
+    private final SheetLayer sheets;
     private String shownCard;
     private UiState shown;
 
-    public MainWindow(Consumer<UiAction> dispatch, Sheets.SettingsOpener settings, Path settingsFile, ZoneId zone) {
+    /** @param demoUrl the preset pack link the wizard offers to try */
+    public MainWindow(Consumer<UiAction> dispatch, String demoUrl, Path settingsFile, ZoneId zone) {
         super(Messages.get("window.titleEmpty"));
         // Closing goes through the store, so a running apply can be confirmed and stopped first
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
@@ -56,7 +60,7 @@ public final class MainWindow extends JFrame {
         hero = new PackHero(dispatch, zone);
         mods = new ModsPanel(dispatch);
         statusBar = new StatusBar(zone);
-        sheets = new Sheets(this, dispatch, settings, settingsFile);
+        sheets = new SheetLayer(getLayeredPane(), dispatch, demoUrl, settingsFile);
 
         JPanel packArea = new JPanel(new BorderLayout());
         packArea.setBackground(Palette.background());
@@ -65,7 +69,10 @@ public final class MainWindow extends JFrame {
         JPanel main = new JPanel(new BorderLayout());
         main.add(library, BorderLayout.WEST);
         main.add(packArea, BorderLayout.CENTER);
-        body.add(new Onboarding(dispatch), ONBOARDING);
+        JPanel onboarding = new JPanel(new GridBagLayout());
+        onboarding.setBackground(Palette.background());
+        onboarding.add(sheets.firstRunWizard());
+        body.add(onboarding, ONBOARDING);
         body.add(main, MAIN);
 
         JPanel content = new JPanel(new BorderLayout());

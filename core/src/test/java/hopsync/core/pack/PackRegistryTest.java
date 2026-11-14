@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,6 +65,22 @@ class PackRegistryTest {
         registry.add(URL, real);
         assertFolderRejected(link);
         assertFolderRejected(link.resolve("not-yet-created"));
+    }
+
+    @Test
+    void tellsWhichPackUsesAFolder() throws IOException {
+        Pack pack = registry.add(URL, dir.resolve("a"));
+
+        assertEquals(pack, registry.packUsing(dir.resolve("a/sub"), null).orElseThrow());
+        assertTrue(registry.packUsing(dir.resolve("a"), pack.id()).isEmpty(), "a pack may keep its own folder");
+        assertTrue(registry.packUsing(dir.resolve("b"), null).isEmpty());
+    }
+
+    @Test
+    void preferencesAreSavedAndClamped() throws IOException {
+        registry.updatePreferences(false, false, 40);
+
+        assertEquals(new PackSettings(List.of(), null, false, false, 8), repository.saved);
     }
 
     @Test

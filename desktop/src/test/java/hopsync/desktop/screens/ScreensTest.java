@@ -7,6 +7,10 @@ import hopsync.desktop.kit.HopSyncDark;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
 import hopsync.desktop.screens.pack.PackHero;
+import hopsync.desktop.screens.sheets.SheetLayer;
+import hopsync.desktop.store.GameFolder;
+import hopsync.desktop.store.Preferences;
+import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.InstalledMods;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.UiAction;
@@ -17,11 +21,13 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JComponent;
 import javax.swing.JLayeredPane;
 import javax.swing.JProgressBar;
+import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.nio.file.Path;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +40,7 @@ import static hopsync.desktop.store.StoreFixtures.plan;
 import static hopsync.desktop.store.StoreFixtures.reduce;
 import static hopsync.desktop.store.StoreFixtures.upToDatePlan;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -153,10 +160,80 @@ class ScreensTest {
     @Test
     void emptyStateRenders() {
         new StatusBar(ZoneOffset.UTC).render(null);
-        paint(new Onboarding(dispatched::add), 960, 560);
         PackLibrary library = new PackLibrary(dispatched::add);
         library.render(UiState.INITIAL);
         paint(library, 214, 560);
+    }
+
+    /** Every sheet in every state it can be in, as the store would leave it. */
+    private static List<UiState> everySheet() {
+        String url = "https://example.org/new.json";
+        UiState empty = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(), null));
+        UiState add = reduce(loaded(), new UiAction.AddPack(), new UiAction.SetLinkUrl(url));
+        UiState valid = reduce(add, new UiAction.CheckLink(), new UiAction.LinkChecked(url, manifest()));
+        GameFolder taken = new GameFolder(GameFolder.Kind.PRISM, "Demo", DEMO.gameDir(), 40, "Demo");
+        GameFolder free = new GameFolder(GameFolder.Kind.OFFICIAL, null, Path.of("/games/.minecraft").toAbsolutePath(),
+            0, null);
+        UiState folders = reduce(valid, new UiAction.WizardNext());
+        UiState packSettings = reduce(loaded(), new UiAction.OpenSettings());
+        return List.of(
+            empty,
+            reduce(empty, new UiAction.SetLinkUrl("http://example.org"), new UiAction.CheckLink()),
+            add,
+            reduce(add, new UiAction.CheckLink()),
+            reduce(add, new UiAction.CheckLink(), new UiAction.LinkFailed(url, new SyncFailure.HttpStatus(404, url))),
+            reduce(add, new UiAction.SetLinkUrl(DEMO.manifestUrl()), new UiAction.CheckLink()),
+            valid,
+            folders,
+            reduce(folders, new UiAction.FoldersFound(List.of())),
+            reduce(folders, new UiAction.FoldersFound(List.of(taken, free))),
+            reduce(folders, new UiAction.FoldersFound(List.of(taken)), new UiAction.ChooseFolder(taken.path())),
+            reduce(folders, new UiAction.FoldersFound(List.of(free)), new UiAction.SheetFailed(
+                new SyncFailure.PermissionDenied("/games/.minecraft"))),
+            packSettings,
+            reduce(packSettings, new UiAction.SetLinkUrl(url), new UiAction.CheckLink(),
+                new UiAction.LinkChecked(url, manifest())),
+            reduce(packSettings, new UiAction.SelectPackSection(Sheet.PackSettings.Section.FOLDER),
+                new UiAction.ChooseFolder(OTHER.gameDir()),
+                new UiAction.FolderChecked(new GameFolder(GameFolder.Kind.OTHER, null, OTHER.gameDir(), 2, "Other"))),
+            reduce(packSettings, new UiAction.SelectPackSection(Sheet.PackSettings.Section.REMOVE)),
+            reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL),
+                new UiAction.SetPreferences(new Preferences(false, true, 6))),
+            reduce(loaded(), new UiAction.OpenAppSettings(Sheet.AppSettings.Section.ABOUT)));
+    }
+
+    @Test
+    void sheetsRenderEveryState() {
+        JLayeredPane window = new JLayeredPane();
+        window.setSize(960, 620);
+        SheetLayer sheets = new SheetLayer(window, dispatched::add, "https://example.org/demo.json",
+            Path.of("settings.json"));
+        JComponent firstRun = sheets.firstRunWizard();
+        for (UiState state : everySheet()) {
+            sheets.render(state);
+            paint(sheets, 960, 620);
+            paint(firstRun, 960, 620);
+        }
+        sheets.render(UiState.INITIAL);
+        assertFalse(sheets.isVisible());
+        assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
+    }
+
+    @Test
+    void typingALinkDispatchesItButRenderingItBackDoesNot() {
+        JLayeredPane window = new JLayeredPane();
+        window.setSize(960, 620);
+        SheetLayer sheets = new SheetLayer(window, dispatched::add, "", Path.of("settings.json"));
+        UiState add = reduce(loaded(), new UiAction.AddPack());
+        sheets.render(add);
+        JTextField field = find(sheets, JTextField.class);
+
+        field.setText("https://example.org/a.json");
+        assertEquals(new UiAction.SetLinkUrl("https://example.org/a.json"), dispatched.getLast());
+        dispatched.clear();
+        sheets.render(reduce(add, new UiAction.SetLinkUrl("https://example.org/b.json")));
+        assertEquals("https://example.org/b.json", field.getText());
+        assertTrue(dispatched.isEmpty(), "rendering never dispatches: " + dispatched);
     }
 
     @Test

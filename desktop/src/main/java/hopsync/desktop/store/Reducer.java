@@ -1,17 +1,21 @@
 package hopsync.desktop.store;
 
 import hopsync.core.event.SyncEvent;
+import hopsync.core.manifest.ConfigEntry;
+import hopsync.core.manifest.Manifest;
+import hopsync.core.manifest.ModEntry;
 import hopsync.core.pack.Pack;
 import hopsync.core.sync.SyncPlan;
 import hopsync.desktop.store.PackUiState.Progress;
 import hopsync.desktop.store.PackUiState.Result;
-import hopsync.desktop.store.UiState.Sheet;
 
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.UnaryOperator;
 
 /**
@@ -45,14 +49,47 @@ public final class Reducer {
             case UiAction.CopyServerIp a -> state;
             case UiAction.CopyPackLink a -> state;
             case UiAction.OpenModPage a -> state;
-            case UiAction.RemovePack a -> state;
-            case UiAction.OpenSettings a -> openForSelectedPack(state,
-                state.packs().isEmpty() ? Sheet.SETTINGS_FIRST_RUN : Sheet.SETTINGS);
-            case UiAction.AddPack a -> state.withSheet(Sheet.ADD_PACK);
+            case UiAction.RemovePack a -> state.withSheet(null);
+            case UiAction.OpenSettings a -> state.packs().isEmpty() ? state.withSheet(Sheet.AddPack.start(true))
+                : openPackSettings(state, Sheet.PackSettings.Section.LINK);
+            case UiAction.AddPack a -> state.withSheet(Sheet.AddPack.start(state.packs().isEmpty()));
             case UiAction.AskRemovePack a -> state.packs().isEmpty() ? state
-                : openForSelectedPack(state, Sheet.REMOVE_PACK);
-            case UiAction.OpenAbout a -> state.withSheet(Sheet.ABOUT);
-            case UiAction.SheetClosed a -> state.withSheet(Sheet.NONE);
+                : openPackSettings(state, Sheet.PackSettings.Section.REMOVE);
+            case UiAction.OpenAppSettings a -> state.withSheet(new Sheet.AppSettings(a.section(), state.preferences()));
+            case UiAction.CloseSheet a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.firstRun() ? state
+                : state.withSheet(null);
+            case UiAction.SheetSaved a -> state.withSheet(null);
+            case UiAction.SheetFailed a -> switch (state.sheet()) {
+                case Sheet.AddPack wizard -> state.withSheet(wizard.withError(a.failure()));
+                case Sheet.PackSettings settings -> state.withSheet(settings.withError(a.failure()));
+                case null, default -> state;
+            };
+            case UiAction.SetLinkUrl a -> switch (state.sheet()) {
+                case Sheet.AddPack wizard -> state.withSheet(wizard.withUrl(a.url(), new LinkCheck.Unchecked()));
+                case Sheet.PackSettings settings -> state.withSheet(settings.withUrl(a.url(), new LinkCheck.Unchecked()));
+                case null, default -> state;
+            };
+            case UiAction.CheckLink a -> checkLink(state);
+            case UiAction.LinkChecked a -> withLinkResult(state, a.url(), valid(a.url(), a.manifest()));
+            case UiAction.LinkFailed a -> withLinkResult(state, a.url(),
+                new LinkCheck.Invalid(LinkCheck.Problem.UNREADABLE, a.failure()));
+            case UiAction.WizardNext a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 1
+                && wizard.link() instanceof LinkCheck.Valid ? state.withSheet(wizard.withStep(2)) : state;
+            case UiAction.WizardBack a -> state.sheet() instanceof Sheet.AddPack wizard
+                ? state.withSheet(wizard.withStep(1)) : state;
+            case UiAction.FoldersFound a -> state.sheet() instanceof Sheet.AddPack wizard && wizard.step() == 2
+                ? state.withSheet(wizard.withFolders(a.folders())) : state;
+            case UiAction.ChooseFolder a -> chooseFolder(state, a.path());
+            case UiAction.FolderChecked a -> folderChecked(state, a.folder());
+            case UiAction.SelectPackSection a -> state.sheet() instanceof Sheet.PackSettings settings
+                ? state.withSheet(settings.withSection(a.section())) : state;
+            case UiAction.SetPreferences a -> state.sheet() instanceof Sheet.AppSettings settings
+                ? state.withSheet(new Sheet.AppSettings(settings.section(), a.preferences())) : state;
+            // Saved by Effects, which answers with SheetSaved or SheetFailed
+            case UiAction.FinishAddPack a -> state;
+            case UiAction.SavePackSettings a -> state;
+            case UiAction.SaveAppSettings a -> state;
+            case UiAction.CopyDiagnostics a -> state;
             case UiAction.ShowToast a -> state.withToast(a.text());
             case UiAction.SelectPack a -> state.packs().containsKey(a.packId())
                 ? state.withSelected(a.packId()).withFilter(UiState.Filter.CHANGES) : state;
@@ -121,19 +158,115 @@ public final class Reducer {
         String selected = packs.containsKey(loaded.activeId()) ? loaded.activeId()
             : packs.containsKey(state.selectedPackId()) ? state.selectedPackId()
             : packs.keySet().stream().findFirst().orElse(null);
-        UiState next = state.withPacks(packs, selected);
-        if (packs.isEmpty() && state.sheet() == Sheet.NONE) {
-            return next.withSheet(Sheet.SETTINGS_FIRST_RUN);
+        UiState next = state.withPacks(packs, selected).withPreferences(loaded.preferences());
+        if (packs.isEmpty() && state.sheet() == null) {
+            return next.withSheet(Sheet.AddPack.start(true));
         }
         return next;
     }
 
-    private static UiState openForSelectedPack(UiState state, Sheet sheet) {
-        if (state.selected().map(pack -> pack.phase().isBusy()).orElse(false)) {
+    private static UiState openPackSettings(UiState state, Sheet.PackSettings.Section section) {
+        PackUiState pack = state.selected().orElse(null);
+        if (pack == null || pack.phase().isBusy()) {
             // The pack being updated keeps its link and folder until it finishes
             return state;
         }
-        return state.withSheet(sheet);
+        GameFolder folder = new GameFolder(GameFolder.Kind.OTHER, null, pack.gameDir(), pack.installed().jars().size(),
+            null);
+        return state.withSheet(new Sheet.PackSettings(pack.packId(), section, pack.manifestUrl(),
+            new LinkCheck.Unchecked(), folder, null));
+    }
+
+    /**
+     * Problems the player can fix without the network are answered at once; otherwise the link is marked as
+     * being checked and Effects fetches it.
+     */
+    private static UiState checkLink(UiState state) {
+        String url;
+        String ownPackId;
+        switch (state.sheet()) {
+            case Sheet.AddPack wizard -> {
+                url = wizard.url().trim();
+                ownPackId = null;
+            }
+            case Sheet.PackSettings settings -> {
+                url = settings.url().trim();
+                ownPackId = settings.packId();
+            }
+            case null, default -> {
+                return state;
+            }
+        }
+        LinkCheck result;
+        if (url.isEmpty()) {
+            result = new LinkCheck.Invalid(LinkCheck.Problem.EMPTY, null);
+        } else if (!url.startsWith("https://")) {
+            result = new LinkCheck.Invalid(LinkCheck.Problem.NOT_HTTPS, null);
+        } else if (state.packs().values().stream()
+                .anyMatch(pack -> pack.manifestUrl().equals(url) && !pack.packId().equals(ownPackId))) {
+            result = new LinkCheck.Invalid(LinkCheck.Problem.ALREADY_ADDED, null);
+        } else {
+            result = new LinkCheck.Checking(url);
+        }
+        return withLink(state, url, result);
+    }
+
+    private static UiState withLink(UiState state, String url, LinkCheck link) {
+        return switch (state.sheet()) {
+            case Sheet.AddPack wizard -> state.withSheet(wizard.withUrl(url, link));
+            case Sheet.PackSettings settings -> state.withSheet(settings.withUrl(url, link));
+            case null, default -> state;
+        };
+    }
+
+    /** Only the answer for the link still being checked counts; the player may have typed another since. */
+    private static UiState withLinkResult(UiState state, String url, LinkCheck result) {
+        LinkCheck current = switch (state.sheet()) {
+            case Sheet.AddPack wizard -> wizard.link();
+            case Sheet.PackSettings settings -> settings.link();
+            case null, default -> null;
+        };
+        if (!(current instanceof LinkCheck.Checking checking) || !checking.url().equals(url)) {
+            return state;
+        }
+        return switch (state.sheet()) {
+            case Sheet.AddPack wizard -> state.withSheet(wizard.withLink(result));
+            case Sheet.PackSettings settings -> state.withSheet(settings.withLink(result));
+            default -> state;
+        };
+    }
+
+    private static LinkCheck valid(String url, Manifest manifest) {
+        long bytes = manifest.mods().stream().mapToLong(ModEntry::size).sum()
+            + manifest.configs().stream().mapToLong(ConfigEntry::size).sum();
+        return new LinkCheck.Valid(url, manifest.pack(), manifest.mods().size(), bytes);
+    }
+
+    private static UiState chooseFolder(UiState state, Path path) {
+        return switch (state.sheet()) {
+            case Sheet.AddPack wizard -> state.withSheet(wizard.withChosen(Optional.ofNullable(wizard.folders())
+                .flatMap(found -> found.stream().filter(folder -> folder.path().equals(path)).findFirst())
+                .orElse(new GameFolder(GameFolder.Kind.OTHER, null, path, 0, null))));
+            case Sheet.PackSettings settings -> state.withSheet(settings.withFolder(
+                new GameFolder(GameFolder.Kind.OTHER, null, path, 0, null)));
+            case null, default -> state;
+        };
+    }
+
+    /** Effects' answer about who uses a folder, for the folder still chosen. */
+    private static UiState folderChecked(UiState state, GameFolder checked) {
+        return switch (state.sheet()) {
+            case Sheet.AddPack wizard when wizard.chosen() != null && wizard.chosen().path().equals(checked.path()) ->
+                state.withSheet(wizard.withChosen(sameKind(wizard.chosen(), checked)));
+            case Sheet.PackSettings settings when settings.folder().path().equals(checked.path()) ->
+                state.withSheet(settings.withFolder(sameKind(settings.folder(), checked)));
+            case null, default -> state;
+        };
+    }
+
+    /** A launcher instance stays one after the check, which only knows the path. */
+    private static GameFolder sameKind(GameFolder chosen, GameFolder checked) {
+        return new GameFolder(chosen.kind(), chosen.name(), checked.path(), checked.jarCount(), checked.usedBy());
     }
 
     private static UiState updatePack(UiState state, String packId, UnaryOperator<PackUiState> change) {

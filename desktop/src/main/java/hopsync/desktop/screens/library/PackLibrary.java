@@ -7,6 +7,7 @@ import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.store.PackUiState;
+import hopsync.desktop.store.Sheet;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 
@@ -132,7 +133,7 @@ public final class PackLibrary extends JPanel {
         JButton appSettings = new JButton(Messages.get("library.appSettings"), Icons.get(Icons.Glyph.GEAR));
         ButtonStyle.apply(appSettings, ButtonStyle.QUIET);
         appSettings.setHorizontalAlignment(JButton.LEFT);
-        appSettings.addActionListener(e -> dispatch.accept(new UiAction.OpenAbout()));
+        appSettings.addActionListener(e -> dispatch.accept(new UiAction.OpenAppSettings(Sheet.AppSettings.Section.GENERAL)));
 
         JPanel addRow = new JPanel(new GridLayout(1, 1));
         addRow.setOpaque(false);

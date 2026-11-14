@@ -119,15 +119,35 @@ public class PackRegistry {
         settings = next;
     }
 
-    private void checkFolderIsFree(Pack candidate) throws SyncException {
-        Path folder = canonical(candidate.gameDir());
+    /**
+     * The pack whose folder is, contains or is inside {@code folder}, other than {@code exceptPackId}.
+     *
+     * @param exceptPackId the pack being edited, which may keep its own folder, or {@code null}
+     */
+    public synchronized Optional<Pack> packUsing(Path folder, String exceptPackId) {
+        Path wanted = canonical(folder);
         for (Pack other : settings.packs()) {
-            if (other.id().equals(candidate.id())) continue;
+            if (other.id().equals(exceptPackId)) continue;
             Path otherFolder = canonical(other.gameDir());
-            if (folder.startsWith(otherFolder) || otherFolder.startsWith(folder)) {
-                String name = other.name().isEmpty() ? other.manifestUrl() : other.name();
-                throw new SyncException(new SyncFailure.FolderUsedByPack(candidate.gameDir().toString(), name));
+            if (wanted.startsWith(otherFolder) || otherFolder.startsWith(wanted)) {
+                return Optional.of(other);
             }
+        }
+        return Optional.empty();
+    }
+
+    /** Saves the app-wide preferences; the number of parallel downloads is kept within 1–8. */
+    public synchronized void updatePreferences(boolean checkOnStart, boolean chainQueue, int parallelDownloads)
+            throws IOException {
+        save(new PackSettings(settings.packs(), settings.activeId(), checkOnStart, chainQueue, parallelDownloads));
+    }
+
+    private void checkFolderIsFree(Pack candidate) throws SyncException {
+        Optional<Pack> other = packUsing(candidate.gameDir(), candidate.id());
+        if (other.isPresent()) {
+            Pack used = other.get();
+            String name = used.name().isEmpty() ? used.manifestUrl() : used.name();
+            throw new SyncException(new SyncFailure.FolderUsedByPack(candidate.gameDir().toString(), name));
         }
     }
 
