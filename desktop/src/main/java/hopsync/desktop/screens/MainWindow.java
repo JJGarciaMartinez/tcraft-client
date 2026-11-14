@@ -2,6 +2,7 @@ package hopsync.desktop.screens;
 
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.screens.library.PackLibrary;
 import hopsync.desktop.screens.mods.ModsPanel;
@@ -48,6 +49,7 @@ public final class MainWindow extends JFrame {
     /** @param demoUrl the preset pack link the wizard offers to try */
     public MainWindow(Consumer<UiAction> dispatch, String demoUrl, Path settingsFile, ZoneId zone) {
         super(Messages.get("window.titleEmpty"));
+        setIconImages(LogoIcon.windowImages());
         // Closing goes through the store, so a running apply can be confirmed and stopped first
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {

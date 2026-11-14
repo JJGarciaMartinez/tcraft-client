@@ -1,0 +1,77 @@
+name: Release
+
+# Pushing a version tag builds the installers on the three OSes and drafts a GitHub Release with them.
+# a/b/rc tags are test builds and are marked as prereleases. The draft is published by hand.
+on:
+  push:
+    tags:
+      - "a[0-9]*.*.*"
+      - "b[0-9]*.*.*"
+      - "rc[0-9]*.*.*"
+      - "[0-9]*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  installers:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag matches version.properties
+        run: |
+          version=$(grep '^app.version=' version.properties | cut -d= -f2 | tr -d '\r')
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match app.version=$version"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Build, test and package
+        run: ./gradlew build jpackage
+
+      - name: Portable ZIP
+        if: runner.os == 'Linux'
+        run: ./gradlew portableZip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            desktop/build/installer/*
+            desktop/build/distributions/*-portable.zip
+          if-no-files-found: error
+
+  draft:
+    needs: installers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in a*|b*|rc*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" --draft $prerelease \
+            --title "HopSync $GITHUB_REF_NAME" --generate-notes

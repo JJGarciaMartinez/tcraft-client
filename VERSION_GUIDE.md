@@ -1,4 +1,4 @@
-# Versioning System - TCraft Client
+# Versioning System - HopSync
 
 ## Technical Overview
 
@@ -6,7 +6,7 @@ This document describes the dual-version scheme implemented to resolve jpackage 
 
 ## Versioning Scheme
 
-TCraft Client uses a **year-based versioning scheme** with the following format:
+HopSync uses a **year-based versioning scheme** with the following format:
 
 ### Version Format: `YY.MAJOR.FIXES`
 
@@ -96,277 +96,34 @@ April 2026:    26.1.1 (bug fix)
 June 2026:     26.2.0 (second major release)
 ```
 
-## jpackage Version Constraint
+## Two versions in `version.properties`
 
-The `jpackage` tool enforces strict version format validation on macOS platforms:
+`jpackage` only accepts one to three numbers (`26.1.4`; `b26.1.4` fails with
+`Version [b26.1.4] contains invalid component [b26]`), so the file keeps two:
 
-**Constraint:** Version strings must consist of one to three dot-separated integer components.
+| Property | Used for | Example |
+|----------|----------|---------|
+| `app.version` | What the app shows (status bar, About), the JAR and ZIP names, the release tag | `b26.1.4` |
+| `app.version.numeric` | `jpackage --app-version`: installer metadata and upgrades | `26.1.4` |
 
-**Valid formats:**
-- `1.0.2`
-- `2.3.4.5`
+`a`, `b` and `rc` versions show "(test build)" next to the version in the app. `app.name`, `app.vendor` and
+`app.win.upgrade.uuid` live in the same file; the UUID never changes.
 
-**Invalid formats:**
-- `b1.0.2` (alphanumeric prefix)
-- `v1.0.2` (non-numeric character)
-- `1.0.2-beta` (hyphenated suffix)
+Gradle reads the file when it configures the build and copies it into the JAR, where `AppVersion` reads it at
+runtime.
 
-**Error message:**
-```
-Bundler Mac DMG Package skipped because of a configuration problem: 
-"Version [b1.0.2] contains invalid component [b1]"
-```
-
-## Implementation Architecture
-
-### Dual-Version Configuration
-
-The system employs two distinct version properties in `version.properties`:
-
-```properties
-app.version=b1.0.2          # Display version (user-facing)
-app.version.numeric=1.0.2   # Package version (jpackage-compatible)
-```
-
-### Property Definitions
-
-| Property | Purpose | Format | Consumer |
-|----------|---------|--------|----------|
-| `app.version` | User-facing version identifier | Semantic version with optional phase prefix | `AppConfig.java`, UI components |
-| `app.version.numeric` | Package metadata version | Numeric dot-notation only | `jpackage`, installer metadata |
-
-### Build Pipeline Integration
-
-The `build-installer.sh` script implements the following logic:
-
-1. Parse both version properties from `version.properties`
-2. Validate `app.version` existence (mandatory)
-3. Apply fallback: if `app.version.numeric` is undefined, use `app.version`
-4. Pass `app.version.numeric` to jpackage via `--app-version` flag
-5. Use `app.version` for user-visible build messages
-
-### Advantages
-
-- **Platform Compatibility:** Ensures jpackage compliance across macOS, Windows, and Linux
-- **Semantic Versioning:** Preserves phase identifiers (alpha, beta, rc) in application UI
-- **Backward Compatibility:** Automatic fallback mechanism for missing numeric version
-- **Automation-Ready:** Script-based version management with auto-detection
-
-## Version Management
-
-### Automated Update (Recommended)
-
-The `update-version.sh` script provides automated version management with intelligent parsing:
+## Changing the version
 
 ```bash
-# Explicit numeric version specification
-./update-version.sh b1.0.3 1.0.3
-
-# Automatic numeric extraction (strips alphabetic prefix)
-./update-version.sh b1.0.3
-
-# Pure numeric version (sets both properties identically)
-./update-version.sh 1.0.3
+./gradlew updateVersion -PnewVersion=b26.2.0              # numeric 26.2.0, taken from the display version
+./gradlew updateVersion -PnewVersion=rc26.2.0 -Pnumeric=26.2.0
+./gradlew updateVersion -PnewVersion=26.2.0               # stable: both the same
 ```
 
-**Auto-detection algorithm:**
-- If `NEW_VERSION` starts with alphabetic characters, strip prefix to derive numeric version
-- Example: `b1.0.3` → `1.0.3`, `rc2.1.0` → `2.1.0`
+The task only rewrites `app.version` and `app.version.numeric`, and refuses a numeric version that `jpackage`
+would reject. Editing the file by hand works too.
 
-### Manual Configuration
+## Releases
 
-Direct modification of `version.properties`:
-
-```properties
-app.version=b1.0.3
-app.version.numeric=1.0.3
-```
-
-## Versioning Schemes
-
-### Alpha Releases (Early Development)
-```properties
-app.version=a26.1.0
-app.version.numeric=26.1.0
-```
-**Use case:** Unstable, experimental features, internal testing
-
-### Beta Releases (Testing Phase)
-```properties
-app.version=b26.1.0
-app.version.numeric=26.1.0
-```
-**Use case:** Feature-complete, public testing, bug fixing
-
-### Release Candidates (Pre-Release)
-```properties
-app.version=rc26.1.0
-app.version.numeric=26.1.0
-```
-**Use case:** Final testing before stable release, no new features
-
-### Stable Releases (Production)
-```properties
-app.version=26.1.0
-app.version.numeric=26.1.0
-```
-**Use case:** Production-ready, public release
-
-### Patch/Fix Releases
-```properties
-app.version=26.1.1
-app.version.numeric=26.1.1
-```
-**Use case:** Bug fixes, minor corrections to stable release
-
-### Multiple Fixes
-```properties
-app.version=26.1.2
-app.version.numeric=26.1.2
-```
-**Progression:** `26.1.0` → `26.1.1` → `26.1.2` → `26.1.3` ...
-
-## Build Process
-
-### Complete Rebuild
-```bash
-./build-jar.sh && ./build-installer.sh
-```
-
-### Installer-Only Build
-```bash
-# Use when JAR artifact is unchanged
-./build-installer.sh
-```
-
-## Technical Implementation Details
-
-### Version Property Resolution
-
-**build-installer.sh:**
-```bash
-APP_VERSION=$(grep '^app.version=' version.properties | cut -d'=' -f2)
-APP_VERSION_NUMERIC=$(grep '^app.version.numeric=' version.properties | cut -d'=' -f2)
-
-# Fallback mechanism
-if [ -z "$APP_VERSION_NUMERIC" ]; then
-    APP_VERSION_NUMERIC="$APP_VERSION"
-fi
-```
-
-**jpackage invocation:**
-```bash
-jpackage --app-version $APP_VERSION_NUMERIC ...
-```
-
-### Application Runtime Behavior
-
-- `AppConfig.java` loads `app.version` for UI display
-- Window titles, about dialogs, and logs display full version with phase identifiers
-- Installer metadata uses numeric version for system compatibility
-- **Installer filenames use display version** (`app.version`) for easy visual identification
-
-## Usage Examples
-
-### Beta Release for 2026 (Current Development)
-```bash
-./update-version.sh b26.1.0
-```
-**Result:**
-- Application UI: `TCraft Client b26.1.0`
-- Installer filename: `TCraft Client-b26.1.0.dmg`
-- Package metadata: `26.1.0`
-
-**Context:** Developing in December 2025 for early 2026 release
-
-### First Patch/Fix
-```bash
-./update-version.sh b26.1.1
-```
-**Result:**
-- Application UI: `TCraft Client b26.1.1`
-- Installer filename: `TCraft Client-b26.1.1.dmg`
-- Package metadata: `26.1.1`
-
-### Second Major Release of 2026
-```bash
-./update-version.sh b26.2.0
-```
-**Result:**
-- Application UI: `TCraft Client b26.2.0`
-- Installer filename: `TCraft Client-b26.2.0.dmg`
-- Package metadata: `26.2.0`
-
-### Stable Release (Production)
-```bash
-./update-version.sh 26.1.0
-```
-**Result:**
-- Application UI: `TCraft Client 26.1.0`
-- Installer filename: `TCraft Client-26.1.0.dmg`
-- Package metadata: `26.1.0`
-
-### Alpha Release
-```bash
-./update-version.sh a26.1.0
-```
-**Result:**
-- Application UI: `TCraft Client a26.1.0`
-- Installer filename: `TCraft Client-a26.1.0.dmg`
-- Package metadata: `26.1.0`
-
-### Release Candidate
-```bash
-./update-version.sh rc26.1.0
-```
-**Result:**
-- Application UI: `TCraft Client rc26.1.0`
-- Installer filename: `TCraft Client-rc26.1.0.dmg`
-- Package metadata: `26.1.0`
-
-## Version Progression Example
-
-Typical development cycle for 2026 first release:
-
-```
-a26.1.0  → Alpha - 1st iteration (early development)
-  ↓
-a26.1.1  → Alpha - 2nd iteration
-  ↓
-b26.1.0  → Beta - 1st iteration (testing phase)
-  ↓
-b26.1.1  → Beta - 2nd iteration
-  ↓
-b26.1.2  → Beta - 3rd iteration
-  ↓
-b26.1.3  → Beta - 4th iteration
-  ↓
-b26.1.4  → Beta - 5th iteration (current: b26.1.4)
-  ↓
-rc26.1.0 → Release Candidate - 1st RC
-  ↓
-rc26.1.1 → Release Candidate - 2nd RC (if needed)
-  ↓
-26.1.0   → STABLE RELEASE (third component resets to 0)
-  ↓
-26.1.1   → Stable - 1st bug fix
-  ↓
-26.1.2   → Stable - 2nd bug fix
-  ↓
-26.2.0   → Next major release cycle begins
-```
-
-## Validation
-
-Verify configuration:
-```bash
-# Display current versions
-grep 'app.version' version.properties
-
-# Test build pipeline
-./build-installer.sh
-
-# Confirm installer artifact
-ls -lh installer/
-```
-
+A release is a tag equal to `app.version` (`b26.2.0`, `26.2.0`) pushed to GitHub; the Release workflow builds
+the installers and drafts the GitHub Release. See [BUILD_GUIDE.md](BUILD_GUIDE.md#releasing).
