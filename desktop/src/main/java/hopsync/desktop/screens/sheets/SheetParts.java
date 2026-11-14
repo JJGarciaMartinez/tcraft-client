@@ -73,7 +73,7 @@ final class SheetParts {
 
     static JLabel title(String text) {
         JLabel title = new JLabel(text);
-        title.putClientProperty(FlatClientProperties.STYLE, "font: bold +6");
+        title.setFont(Fonts.display(title.getFont(), 6));
         return title;
     }
 

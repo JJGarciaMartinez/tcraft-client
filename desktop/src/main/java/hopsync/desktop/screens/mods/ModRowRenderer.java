@@ -60,11 +60,11 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
         more.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
         message.setForeground(Palette.textSecondary());
         message.setBorder(BorderFactory.createEmptyBorder(14, 20, 14, 20));
-        banner.setIcon(Icons.get(Icons.Glyph.SHIELD, 16, Palette.accent()));
+        banner.setIcon(Icons.get(Icons.Glyph.SHIELD, 16, Palette.mine()));
         banner.setIconTextGap(UIScale.scale(8));
         banner.setForeground(Palette.textSecondary());
         banner.setOpaque(true);
-        banner.setBackground(ColorFunctions.fade(Palette.accent(), 0.06f));
+        banner.setBackground(ColorFunctions.fade(Palette.mine(), 0.07f));
         banner.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createMatteBorder(10, 16, 4, 16, Palette.background()),
             BorderFactory.createEmptyBorder(9, 12, 9, 12)));
@@ -143,7 +143,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
     static Color toneColor(ModRow.IconTone tone) {
         return switch (tone) {
             case FAINT -> Palette.textFaint();
-            case ACCENT -> Palette.accent();
+            case MINE -> Palette.mine();
             case ADDED -> Palette.added();
             case UPDATE -> Palette.update();
             case ERROR -> Palette.error();
@@ -216,7 +216,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
                     hovered ? Palette.text() : Palette.textFaint())
                 : null);
             setBackground(switch (row.look()) {
-                case CURRENT -> ColorFunctions.fade(Palette.accent(), 0.07f);
+                case CURRENT -> ColorFunctions.fade(Palette.mine(), 0.06f);
                 case ERROR -> ColorFunctions.fade(Palette.error(), 0.06f);
                 case NORMAL -> hovered || expanded ? Palette.rowHover() : Palette.background();
             });
@@ -246,7 +246,7 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
                 int h = getHeight();
                 g2.setColor(Palette.well());
                 g2.fillRoundRect(0, 0, getWidth(), h, h, h);
-                g2.setColor(Palette.accent());
+                g2.setColor(Palette.mine());
                 g2.fillRoundRect(0, 0, getWidth() * percent / 100, h, h, h);
             } finally {
                 g2.dispose();
@@ -325,9 +325,9 @@ final class ModRowRenderer implements ListCellRenderer<ModRow> {
             description.setForeground(Palette.text());
             facts.setForeground(Palette.textFaint());
             facts.putClientProperty(FlatClientProperties.STYLE, "font: -1");
-            link.setForeground(new Color(0x9FDCA3));
+            link.setForeground(Palette.mine());
             link.putClientProperty(FlatClientProperties.STYLE, "font: semibold");
-            link.setIcon(Icons.get(Icons.Glyph.EXTERNAL, 13, new Color(0x9FDCA3)));
+            link.setIcon(Icons.get(Icons.Glyph.EXTERNAL, 13, Palette.mine()));
             link.setHorizontalTextPosition(JLabel.LEFT);
             JPanel text = new JPanel();
             text.setOpaque(false);

@@ -32,7 +32,7 @@ final class FolderCard extends JPanel {
         setBackground(selected ? Palette.raised() : Palette.surface());
         putClientProperty(FlatClientProperties.STYLE, "arc: 10");
         setBorder(BorderFactory.createCompoundBorder(
-            new FlatLineBorder(new Insets(0, 0, 0, 0), selected ? Palette.accent() : Palette.line(), 1, 10),
+            new FlatLineBorder(new Insets(0, 0, 0, 0), selected ? Palette.mine() : Palette.line(), 1, 10),
             BorderFactory.createEmptyBorder(8, 8, 8, 12)));
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 

@@ -10,7 +10,7 @@ import hopsync.desktop.store.UiAction;
 public sealed interface ModRow {
 
     /** Color of a row's leading icon. */
-    enum IconTone { FAINT, ACCENT, ADDED, UPDATE, ERROR }
+    enum IconTone { FAINT, MINE, ADDED, UPDATE, ERROR }
 
     /** Background treatment of a mod row. */
     enum Look { NORMAL, CURRENT, ERROR }

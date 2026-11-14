@@ -18,17 +18,17 @@ public final class StatusMark extends FlatAbstractIcon {
     public enum Kind {
         /** Grey dot: unchecked, cancelled. */
         IDLE,
-        /** Green dot with a halo: up to date. */
+        /** Turquoise dot with a halo: up to date. */
         OK,
         /** Amber dot with a halo: changes waiting, applied with errors. */
         WARN,
-        /** Red dot with a halo: the update failed. */
+        /** Rose dot with a halo: the update failed. */
         ERROR,
         /** Empty ring: waiting in the apply queue. */
         QUEUED,
-        /** Open green arc: checking or applying. */
+        /** Open coral arc: checking or applying. */
         SPINNER,
-        /** Ring filled up to the percent: downloading. */
+        /** Turquoise ring filled up to the percent: downloading. */
         PROGRESS
     }
 
@@ -59,7 +59,7 @@ public final class StatusMark extends FlatAbstractIcon {
     protected void paintIcon(Component c, Graphics2D g) {
         switch (kind) {
             case IDLE -> dot(g, Palette.textFaint(), false);
-            case OK -> dot(g, Palette.accent(), true);
+            case OK -> dot(g, Palette.mine(), true);
             case WARN -> dot(g, Palette.update(), true);
             case ERROR -> dot(g, Palette.error(), true);
             case QUEUED -> {
@@ -68,14 +68,14 @@ public final class StatusMark extends FlatAbstractIcon {
                 g.draw(new Ellipse2D.Float(3, 3, 6, 6));
             }
             case SPINNER -> {
-                g.setColor(Palette.accent());
+                g.setColor(Palette.action());
                 g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
                 g.draw(new Arc2D.Float(1.5f, 1.5f, 9, 9, 90, 270, Arc2D.OPEN));
             }
             case PROGRESS -> {
                 g.setColor(Palette.raised());
                 g.fill(new Ellipse2D.Float(0, 0, SIZE, SIZE));
-                g.setColor(Palette.accent());
+                g.setColor(Palette.mine());
                 g.fill(new Arc2D.Float(0, 0, SIZE, SIZE, 90, -360f * percent / 100, Arc2D.PIE));
             }
         }

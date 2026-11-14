@@ -148,10 +148,10 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         String size = PlanSummary.formatBytes(mod.size());
         String author = mod.author() == null ? "" : mod.author();
         return switch (pack.rowStatus().get(mod.file())) {
-            case RowStatus.Downloading s -> new ModRow.Mod(mod.file(), Glyph.SPINNER, ModRow.IconTone.ACCENT, mod.name(),
+            case RowStatus.Downloading s -> new ModRow.Mod(mod.file(), Glyph.SPINNER, ModRow.IconTone.MINE, mod.name(),
                 version, oldVersion, author, size, null, s.percent(), null, ModRow.Look.CURRENT, true);
-            case RowStatus.Done s -> row(mod, Glyph.CHECK, ModRow.IconTone.ACCENT, version, oldVersion, author, size,
-                tag(change == ModChange.UPDATE ? "mods.status.updated" : "mods.status.installed", Tone.ACCENT),
+            case RowStatus.Done s -> row(mod, Glyph.CHECK, ModRow.IconTone.MINE, version, oldVersion, author, size,
+                tag(change == ModChange.UPDATE ? "mods.status.updated" : "mods.status.installed", Tone.MINE),
                 ModRow.Look.NORMAL);
             // The reason takes the author's place, as in the design
             // Retrying re-checks the pack and applies what failed, unless the pack changed meanwhile
@@ -188,9 +188,9 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
     private static ModRow.Mod removalRow(PackUiState pack, String file) {
         boolean removed = pack.rowStatus().get(file) instanceof RowStatus.Removed;
         return new ModRow.Mod(file, removed ? Glyph.CHECK : Glyph.MINUS,
-            removed ? ModRow.IconTone.ACCENT : ModRow.IconTone.ERROR, file,
+            removed ? ModRow.IconTone.MINE : ModRow.IconTone.ERROR, file,
             VersionLabel.clean(pack.installed().versions().get(file), pack.packInfo()), null, "", "",
-            removed ? tag("mods.status.removed", Tone.ACCENT) : tag("mods.status.remove", Tone.ERROR), null, null,
+            removed ? tag("mods.status.removed", Tone.MINE) : tag("mods.status.remove", Tone.ERROR), null, null,
             ModRow.Look.NORMAL, false);
     }
 
@@ -245,7 +245,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
             case INSTALL -> tag("mods.config.new", Tone.ADDED);
             case REPLACE -> tag("mods.config.update", Tone.UPDATE);
             case KEEP_EDITED -> tag("mods.config.kept", Tone.NEUTRAL);
-            case UP_TO_DATE -> tag("mods.config.upToDate", Tone.ACCENT);
+            case UP_TO_DATE -> tag("mods.config.upToDate", Tone.MINE);
         };
     }
 
