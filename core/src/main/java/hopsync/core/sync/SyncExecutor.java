@@ -288,7 +288,11 @@ public class SyncExecutor {
             report();
         }
 
-        private void report() {
+        /**
+         * Synchronized so parallel downloads publish snapshots in the order they read the counters: otherwise
+         * an older snapshot could arrive last and the count would seem to go back.
+         */
+        private synchronized void report() {
             listener.progress(new ProgressSnapshot(files.get(), totalFiles, Math.max(0, bytes.get()), totalBytes));
         }
     }
