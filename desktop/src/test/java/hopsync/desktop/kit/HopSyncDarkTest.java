@@ -32,10 +32,16 @@ class HopSyncDarkTest {
     @Test
     void installsTheThemeWithItsPalette() {
         assertEquals(HopSyncDark.NAME, UIManager.getLookAndFeel().getName());
-        assertEquals(new Color(0x5DBB63), UIManager.getColor("HopSync.accent"));
-        assertEquals(new Color(0x5DBB63), Palette.accent());
-        assertEquals(new Color(0x141618), Palette.background());
-        assertEquals(new Color(0x0C0E0F), UIManager.getColor("TextField.background"));
+        assertEquals(new Color(0x141317), Palette.background());
+        assertEquals(new Color(0x0D0C10), UIManager.getColor("TextField.background"));
+        assertEquals(new Color(0xE9E6EF), Palette.brand());
+        assertEquals(new Color(0x2EC4B6), Palette.mine());
+        assertEquals(new Color(0xFF6B4A), Palette.action());
+        assertEquals(Palette.action(), Palette.added());
+        assertEquals(new Color(0xF2B24A), Palette.update());
+        assertEquals(new Color(0xF2668B), Palette.error());
+        assertEquals(Palette.mine(), UIManager.getColor("HopSync.focus"));
+        assertEquals(Palette.mine(), UIManager.getColor("ProgressBar.foreground"));
     }
 
     @Test

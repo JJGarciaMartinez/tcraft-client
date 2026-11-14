@@ -20,7 +20,7 @@ public final class StatusTag extends JLabel {
 
     public enum Tone {
         NEUTRAL(Palette::textSecondary),
-        ACCENT(Palette::accent),
+        MINE(Palette::mine),
         ADDED(Palette::added),
         UPDATE(Palette::update),
         ERROR(Palette::error);

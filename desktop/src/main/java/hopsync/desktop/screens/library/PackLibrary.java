@@ -4,6 +4,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
+import hopsync.desktop.kit.Fonts;
 import hopsync.desktop.kit.Icons;
 import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
@@ -64,7 +65,7 @@ public final class PackLibrary extends JPanel {
 
     private JPanel header() {
         JLabel logo = new JLabel("HopSync", new LogoIcon(), JLabel.LEFT);
-        logo.putClientProperty(FlatClientProperties.STYLE, "font: bold +4");
+        logo.setFont(Fonts.display(logo.getFont(), 4));
         logo.setIconTextGap(UIScale.scale(8));
         JPanel brand = new JPanel(new BorderLayout());
         brand.setOpaque(false);
@@ -188,7 +189,7 @@ public final class PackLibrary extends JPanel {
         }
     }
 
-    /** "Añadir pack": a dashed outline that turns green on hover, so it reads as a place to add more. */
+    /** "Añadir pack": a dashed outline that turns coral on hover, so it reads as a place to add more. */
     private static final class DashedButton extends JButton {
         private boolean hover;
 
@@ -204,7 +205,7 @@ public final class PackLibrary extends JPanel {
                 @Override
                 public void mouseEntered(MouseEvent e) {
                     hover = true;
-                    setForeground(Palette.accent());
+                    setForeground(Palette.action());
                     repaint();
                 }
 
@@ -225,7 +226,7 @@ public final class PackLibrary extends JPanel {
                 float dash = UIScale.scale(5f);
                 g2.setStroke(new BasicStroke(UIScale.scale(1.5f), BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 10,
                     new float[] {dash, dash * 0.7f}, 0));
-                g2.setColor(hover ? Palette.accent() : Palette.edge());
+                g2.setColor(hover ? Palette.action() : Palette.edge());
                 int arc = UIScale.scale(10);
                 g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, arc, arc);
             } finally {

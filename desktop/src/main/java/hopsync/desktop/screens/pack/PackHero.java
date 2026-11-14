@@ -92,7 +92,7 @@ public final class PackHero extends JPanel {
     }
 
     private JPanel info() {
-        name.putClientProperty(FlatClientProperties.STYLE, "font: bold +9");
+        name.setFont(Fonts.display(name.getFont(), 9));
         version.setFont(new Font(Fonts.MONO_FAMILY, Font.PLAIN, Math.round(getFont().getSize2D() - 1)));
         version.setForeground(Palette.textSecondary());
         version.setBorder(new FlatLineBorder(new Insets(1, 6, 1, 6), Palette.line(), 1, 10));
