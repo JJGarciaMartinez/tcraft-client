@@ -1,12 +1,9 @@
 #!/bin/bash
 
-# TCraft Client - Diagnostic Script for macOS App Bundle
+# HopSync - Diagnostic Script for macOS App Bundle
 # Diagnoses why the app won't open on other Macs
 
 set -e
-
-# Ensure all scripts have execute permissions
-source "$(dirname "$0")/ensure-permissions.sh"
 
 # Change to project root directory
 cd "$(dirname "$0")/../.."
@@ -21,16 +18,16 @@ BOLD='\033[1m'
 RESET='\033[0m'
 
 echo -e "${BOLD}${CYAN}================================================================${RESET}"
-echo -e "${BOLD}${CYAN}  TCraft Client - Diagnostic Tool${RESET}"
+echo -e "${BOLD}${CYAN}  HopSync - Diagnostic Tool${RESET}"
 echo -e "${BOLD}${CYAN}================================================================${RESET}"
 echo ""
 
-# Find DMG file in installer directory
-DMG_FILE=$(find installer -name "*.dmg" -type f | head -n 1)
+# Find the DMG built by ./gradlew jpackage
+DMG_FILE=$(find desktop/build/installer -name "*.dmg" -type f | head -n 1)
 
 if [ -z "$DMG_FILE" ]; then
-    echo -e "${RED}[ERROR]${RESET} No DMG file found in ${BLUE}installer/${RESET}"
-    echo -e "${CYAN}[INFO]${RESET} Run ${BLUE}./build-installer.sh${RESET} to create one"
+    echo -e "${RED}[ERROR]${RESET} No DMG file found in ${BLUE}desktop/build/installer/${RESET}"
+    echo -e "${CYAN}[INFO]${RESET} Run ${BLUE}./gradlew jpackage${RESET} on macOS to create one"
     exit 1
 fi
 
@@ -39,22 +36,22 @@ echo ""
 
 # Mount the DMG
 echo -e "${YELLOW}[INFO]${RESET} Mounting DMG..."
-hdiutil attach "$DMG_FILE" -mountpoint /tmp/tcraft_mount 2>/dev/null
+hdiutil attach "$DMG_FILE" -mountpoint /tmp/hopsync_mount 2>/dev/null
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}[ERROR]${RESET} Failed to mount DMG"
     exit 1
 fi
 
-echo -e "${GREEN}[OK]${RESET} DMG mounted at ${BLUE}/tmp/tcraft_mount${RESET}"
+echo -e "${GREEN}[OK]${RESET} DMG mounted at ${BLUE}/tmp/hopsync_mount${RESET}"
 echo ""
 
 # Find the app bundle
-APP_PATH=$(find /tmp/tcraft_mount -name "*.app" -maxdepth 1 | head -n 1)
+APP_PATH=$(find /tmp/hopsync_mount -name "*.app" -maxdepth 1 | head -n 1)
 
 if [ -z "$APP_PATH" ]; then
     echo -e "${RED}[ERROR]${RESET} No .app bundle found in DMG"
-    hdiutil detach /tmp/tcraft_mount 2>/dev/null
+    hdiutil detach /tmp/hopsync_mount 2>/dev/null
     exit 1
 fi
 
@@ -137,13 +134,13 @@ else
     echo -e "${RED}[ERROR]${RESET} App process terminated immediately"
     echo ""
     echo -e "${YELLOW}[INFO]${RESET} Checking Console logs for errors..."
-    log show --predicate 'process == "TCraft Client"' --last 1m --info 2>/dev/null | tail -n 20
+    log show --predicate 'process == "HopSync"' --last 1m --info 2>/dev/null | tail -n 20
 fi
 
 # Cleanup
 echo ""
 echo -e "${YELLOW}[INFO]${RESET} Cleaning up..."
-hdiutil detach /tmp/tcraft_mount 2>/dev/null
+hdiutil detach /tmp/hopsync_mount 2>/dev/null
 echo -e "${GREEN}[OK]${RESET} Done"
 
 

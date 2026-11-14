@@ -5,6 +5,7 @@ import com.formdev.flatlaf.util.UIScale;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.ButtonStyle;
 import hopsync.desktop.kit.Icons;
+import hopsync.desktop.kit.LogoIcon;
 import hopsync.desktop.kit.Palette;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.Sheet;

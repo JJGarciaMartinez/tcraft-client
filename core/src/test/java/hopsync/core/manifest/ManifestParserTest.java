@@ -116,7 +116,7 @@ class ManifestParserTest {
     @Test
     void rejectsLegacyTcraftManifest() {
         String legacy = """
-            {"mod_pack_name": "TCraft", "mods": [{"name": "a.jar", "url": "https://x/a.jar"}]}
+            {"mod_pack_name": "Old pack", "mods": [{"name": "a.jar", "url": "https://x/a.jar"}]}
             """;
         ManifestException e = assertRejected(legacy);
         assertTrue(e.getMessage().contains("format_version"));

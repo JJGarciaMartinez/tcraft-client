@@ -1,4 +1,4 @@
-# Branching Strategy - TCraft Client
+# Branching Strategy - HopSync
 
 ## Overview
 
