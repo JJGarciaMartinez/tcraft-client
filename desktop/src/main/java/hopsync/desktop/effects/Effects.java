@@ -7,11 +7,14 @@ import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 import hopsync.core.pack.PackRegistry;
 import hopsync.core.session.PackSessions;
+import hopsync.core.session.UpdateState;
 import hopsync.desktop.i18n.Messages;
+import hopsync.desktop.store.Preferences;
 import hopsync.desktop.store.PackUiState;
 import hopsync.desktop.store.Store;
 import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
+import hopsync.platform.fs.InstanceFinder;
 import hopsync.platform.manifest.ManifestService;
 
 import java.awt.Desktop;
@@ -19,7 +22,9 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
@@ -30,6 +35,7 @@ import java.util.concurrent.Executor;
  */
 public final class Effects {
     private static final System.Logger LOG = System.getLogger(Effects.class.getName());
+    private static final Duration QUIT_WAIT = Duration.ofSeconds(5);
 
     private final Store store;
     private final PackRegistry registry;
@@ -38,9 +44,12 @@ public final class Effects {
     private final ModLoadService modLoadService;
     private final Executor background;
     private final Clock clock;
+    private final Runnable exit;
+    private final SheetEffects sheets;
 
     public Effects(Store store, PackRegistry registry, PackSessions sessions, ManifestService manifests,
-                   ModLoadService modLoadService, Executor background, Clock clock) {
+                   ModLoadService modLoadService, InstanceFinder instances, Executor background, Path settingsFile,
+                   Clock clock, Runnable exit) {
         this.store = store;
         this.registry = registry;
         this.sessions = sessions;
@@ -48,6 +57,11 @@ public final class Effects {
         this.modLoadService = modLoadService;
         this.background = background;
         this.clock = clock;
+        this.exit = exit;
+        this.sheets = new SheetEffects(store, registry, manifests, instances, background, settingsFile,
+            this::reloadPacks, packId -> sessions.get(packId).startUpdate(),
+            packId -> sessions.get(packId).cancelUpdate(),
+            packId -> sessions.get(packId).getPhase() == UpdateState.Phase.APPLYING);
     }
 
     /** Starts listening to the core and the store, then loads the packs. */
@@ -55,6 +69,9 @@ public final class Effects {
         events.subscribe(event -> store.dispatch(new UiAction.SyncEventReceived(event, clock.instant())));
         store.addEffect(this::run);
         reloadPacks();
+        if (registry.settings().checkOnStart()) {
+            store.dispatch(new UiAction.CheckAll());
+        }
     }
 
     private void run(UiAction action, UiState state) {
@@ -66,6 +83,8 @@ public final class Effects {
             case UiAction.ConfirmPlan a -> sessions.get(a.packId()).confirmPlan();
             case UiAction.DismissPlan a -> sessions.get(a.packId()).cancelUpdate();
             case UiAction.CancelUpdate a -> sessions.get(a.packId()).cancelUpdate();
+            case UiAction.ContinueUpdate a -> sessions.get(a.packId()).continueUpdate(a.files());
+            case UiAction.Quit a -> quit();
             case UiAction.ReloadInstalled a -> loadInstalled(a.packId());
             case UiAction.SelectPack a -> {
                 remember(a.packId());
@@ -81,11 +100,10 @@ public final class Effects {
                 .ifPresent(pack -> copy(pack.manifestUrl(), Messages.get("toast.linkCopied")));
             case UiAction.RemovePack a -> removePack(a.packId(), state);
             case UiAction.OpenModPage a -> openModPage(a.url());
-            case UiAction.SheetClosed a when a.changed() -> reloadPacks();
             case UiAction.SyncEventReceived a when finishesUpdate(a.event()) ->
                 // Back to what is on disk once the worker has stopped
                 loadInstalled(a.event().packId());
-            default -> { }
+            default -> sheets.run(action, state);
         }
     }
 
@@ -96,10 +114,36 @@ public final class Effects {
 
     private void reloadPacks() {
         Optional<Pack> active = registry.active();
-        store.dispatch(new UiAction.PacksLoaded(registry.packs(), active.map(Pack::id).orElse(null)));
+        var settings = registry.settings();
+        store.dispatch(new UiAction.PacksLoaded(registry.packs(), active.map(Pack::id).orElse(null),
+            new Preferences(settings.checkOnStart(), settings.chainQueue(), settings.parallelDownloads())));
         active.ifPresent(pack -> {
             loadInstalled(pack.id());
             loadManifest(pack.id());
+        });
+    }
+
+    /**
+     * Cancels whatever runs, gives the workers a moment to save the state of what they finished, then exits.
+     * Exiting earlier would also be safe: the next check adopts finished files and deletes partial ones.
+     */
+    private void quit() {
+        if (!sessions.anyRunning()) {
+            exit.run();
+            return;
+        }
+        sessions.cancelAll();
+        background.execute(() -> {
+            long deadline = System.nanoTime() + QUIT_WAIT.toNanos();
+            while (sessions.anyRunning() && System.nanoTime() < deadline) {
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            exit.run();
         });
     }
 
@@ -113,6 +157,11 @@ public final class Effects {
     }
 
     private void removePack(String packId, UiState state) {
+        if (sessions.get(packId).getPhase() == UpdateState.Phase.APPLYING) {
+            // The sheet disables the button; this covers an apply that started in between
+            store.dispatch(new UiAction.ShowToast(Messages.get("toast.waitForApply")));
+            return;
+        }
         String name = Optional.ofNullable(state.packs().get(packId)).map(PackUiState::displayName).orElse(packId);
         sessions.drop(packId);
         Optional<String> link = registry.find(packId).map(Pack::manifestUrl);

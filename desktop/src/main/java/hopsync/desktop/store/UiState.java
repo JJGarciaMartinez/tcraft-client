@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -13,25 +14,24 @@ import java.util.Optional;
  * @param selectedPackId the pack shown in the main area, or {@code null} when there are no packs
  * @param queries        search text of the mod list, per tab
  * @param expandedRow    file of the expanded mod row, or {@code null}
- * @param sheet          the dialog or sheet open on top of the window
+ * @param sheet          the sheet open on top of the window, or {@code null}
  * @param toast          the last short notice shown, or {@code null}
+ * @param preferences    app-wide preferences, as saved
  */
 public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab tab, Filter filter,
-                      Map<Tab, String> queries, String expandedRow, Sheet sheet, Toast toast) {
+                      Map<Tab, String> queries, String expandedRow, Sheet sheet, Toast toast,
+                      Preferences preferences) {
 
     public enum Tab { PACK, OWN_MODS, CONFIGS }
 
     public enum Filter { CHANGES, ALL }
-
-    /** Dialogs; {@code SETTINGS} and {@code REMOVE_PACK} act on the selected pack. */
-    public enum Sheet { NONE, SETTINGS, SETTINGS_FIRST_RUN, ADD_PACK, REMOVE_PACK, ABOUT }
 
     /** @param id grows with every notice, so the same text shown twice still counts as new */
     public record Toast(String text, long id) {
     }
 
     public static final UiState INITIAL = new UiState(Map.of(), null, Tab.PACK, Filter.CHANGES, Map.of(), null,
-        Sheet.NONE, null);
+        null, null, Preferences.DEFAULT);
 
     public UiState {
         packs = Collections.unmodifiableMap(new LinkedHashMap<>(packs));
@@ -48,7 +48,7 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     }
 
     UiState withPacks(Map<String, PackUiState> newPacks, String newSelected) {
-        return new UiState(newPacks, newSelected, tab, filter, queries, expandedRow, sheet, toast);
+        return new UiState(newPacks, newSelected, tab, filter, queries, expandedRow, sheet, toast, preferences);
     }
 
     UiState withPack(PackUiState pack) {
@@ -58,31 +58,31 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
     }
 
     UiState withSelected(String packId) {
-        return new UiState(packs, packId, tab, filter, queries, null, sheet, toast);
+        return new UiState(packs, packId, tab, filter, queries, null, sheet, toast, preferences);
     }
 
     UiState withTab(Tab newTab) {
-        return new UiState(packs, selectedPackId, newTab, filter, queries, expandedRow, sheet, toast);
+        return new UiState(packs, selectedPackId, newTab, filter, queries, expandedRow, sheet, toast, preferences);
     }
 
     UiState withFilter(Filter newFilter) {
-        return new UiState(packs, selectedPackId, tab, newFilter, queries, expandedRow, sheet, toast);
+        return new UiState(packs, selectedPackId, tab, newFilter, queries, expandedRow, sheet, toast, preferences);
     }
 
     UiState withQuery(String newQuery) {
         Map<Tab, String> next = new EnumMap<>(Tab.class);
         next.putAll(queries);
         next.put(tab, newQuery == null ? "" : newQuery);
-        return new UiState(packs, selectedPackId, tab, filter, next, expandedRow, sheet, toast);
+        return new UiState(packs, selectedPackId, tab, filter, next, expandedRow, sheet, toast, preferences);
     }
 
     UiState withExpandedRow(String file) {
-        return new UiState(packs, selectedPackId, tab, filter, queries, file, sheet, toast);
+        return new UiState(packs, selectedPackId, tab, filter, queries, file, sheet, toast, preferences);
     }
 
     UiState withToast(String text) {
         return new UiState(packs, selectedPackId, tab, filter, queries, expandedRow, sheet,
-            new Toast(text, toast == null ? 1 : toast.id() + 1));
+            new Toast(text, toast == null ? 1 : toast.id() + 1), preferences);
     }
 
     /** True while any pack other than {@code packId} is writing files. */
@@ -94,7 +94,12 @@ public record UiState(Map<String, PackUiState> packs, String selectedPackId, Tab
         return packs.values().stream().filter(pack -> pack.phase() == PackPhase.APPLYING).findFirst();
     }
 
+    UiState withPreferences(Preferences newPreferences) {
+        return new UiState(packs, selectedPackId, tab, filter, queries, expandedRow, sheet, toast, newPreferences);
+    }
+
     UiState withSheet(Sheet newSheet) {
-        return new UiState(packs, selectedPackId, tab, filter, queries, expandedRow, newSheet, toast);
+        if (Objects.equals(sheet, newSheet)) return this;
+        return new UiState(packs, selectedPackId, tab, filter, queries, expandedRow, newSheet, toast, preferences);
     }
 }

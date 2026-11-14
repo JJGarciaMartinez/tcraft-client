@@ -25,7 +25,16 @@ public sealed interface SyncEvent {
     record UpdateCancelled(String packId) implements SyncEvent {}
     /** The update stopped before finishing; nothing beyond what the state records was changed. */
     record UpdateFailed(String packId, SyncFailure failure) implements SyncEvent {}
-    record ProgressChanged(String packId, int percent) implements SyncEvent {}
+    /**
+     * How far the apply has got.
+     *
+     * @param doneFiles      files processed so far (downloaded, failed or removed)
+     * @param bytesPerSecond average download speed of the last seconds
+     */
+    record Progress(String packId, int doneFiles, int totalFiles, long bytesDone, long bytesTotal,
+                    long bytesPerSecond) implements SyncEvent {}
+    /** One mod's download, in steps of 5 %. */
+    record ModProgress(String packId, String file, int percent) implements SyncEvent {}
     record ModDownloading(String packId, String file) implements SyncEvent {}
     /** @param failure why the mod could not be installed, or {@code null} on success */
     record ModCompleted(String packId, String file, boolean success, SyncFailure failure) implements SyncEvent {}

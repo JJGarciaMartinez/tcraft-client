@@ -64,6 +64,8 @@ final class ModTable extends JScrollPane {
                 int index = indexAt(e.getPoint());
                 if (index < 0) return;
                 switch (model.get(index)) {
+                    case ModRow.Mod row when row.statusAction() != null && onStatusButton(index, row, e.getPoint()) ->
+                        dispatch.accept(row.statusAction());
                     case ModRow.Mod row when row.expandable() -> dispatch.accept(new UiAction.ToggleRow(row.key()));
                     case ModRow.More row -> dispatch.accept(row.action());
                     case ModRow.Detail row when row.url() != null && onLink(index, row, e.getPoint()) ->
@@ -90,6 +92,11 @@ final class ModTable extends JScrollPane {
     private int indexAt(Point point) {
         int index = list.locationToIndex(point);
         return index >= 0 && list.getCellBounds(index, index).contains(point) ? index : -1;
+    }
+
+    private boolean onStatusButton(int index, ModRow.Mod row, Point point) {
+        Rectangle cell = list.getCellBounds(index, index);
+        return renderer.statusBounds(row, cell.width).contains(point.x - cell.x, point.y - cell.y);
     }
 
     private boolean onLink(int index, ModRow.Detail row, Point point) {

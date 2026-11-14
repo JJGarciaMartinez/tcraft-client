@@ -5,8 +5,10 @@ import hopsync.core.failure.SyncFailure;
 import hopsync.core.manifest.Manifest;
 import hopsync.core.pack.Pack;
 
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Everything that can change the UI state: events from the core, data loaded in the background and what
@@ -20,8 +22,12 @@ public sealed interface UiAction {
     /** An event of any pack's session; the reducer switches over {@link SyncEvent} exhaustively. */
     record SyncEventReceived(SyncEvent event, Instant at) implements UiAction {}
 
-    /** The packs in the registry, after startup or after the settings changed. */
-    record PacksLoaded(List<Pack> packs, String activeId) implements UiAction {}
+    /** The packs in the registry and the app preferences, after startup or after the settings changed. */
+    record PacksLoaded(List<Pack> packs, String activeId, Preferences preferences) implements UiAction {
+        public PacksLoaded(List<Pack> packs, String activeId) {
+            this(packs, activeId, Preferences.DEFAULT);
+        }
+    }
 
     record InstalledModsLoaded(String packId, InstalledMods mods) implements UiAction {}
 
@@ -41,6 +47,16 @@ public sealed interface UiAction {
 
     record DismissPlan(String packId) implements UiAction {}
 
+    /**
+     * Retries failed downloads or continues a cancelled update: the plan is computed again and applied
+     * without a new review when it only touches {@code files}.
+     */
+    record ContinueUpdate(String packId, Set<String> files) implements UiAction {
+        public ContinueUpdate {
+            files = Set.copyOf(files);
+        }
+    }
+
     /** Stops the check or apply, or takes the pack out of the apply queue. */
     record CancelUpdate(String packId) implements UiAction {}
 
@@ -58,20 +74,61 @@ public sealed interface UiAction {
     /** Forgets the pack after the player confirmed; its files stay where they are. */
     record RemovePack(String packId) implements UiAction {}
 
-    // Dialogs
+    // Sheets
 
-    /** Settings of the selected pack (or the first-run settings when there are no packs). */
+    /** Settings of the selected pack (or the add-pack wizard when there are no packs). */
     record OpenSettings() implements UiAction {}
 
     record AddPack() implements UiAction {}
 
-    /** Asks the player to confirm removing the selected pack. */
+    /** The selected pack's settings, on the section that removes it. */
     record AskRemovePack() implements UiAction {}
 
-    record OpenAbout() implements UiAction {}
+    record OpenAppSettings(Sheet.AppSettings.Section section) implements UiAction {}
 
-    /** @param changed the dialog saved something, so the packs must be reloaded */
-    record SheetClosed(boolean changed) implements UiAction {}
+    /** Esc or "Cancelar"; the first-run wizard cannot be closed. */
+    record CloseSheet() implements UiAction {}
+
+    /** A sheet saved; the packs are reloaded by Effects. */
+    record SheetSaved() implements UiAction {}
+
+    record SheetFailed(SyncFailure failure) implements UiAction {}
+
+    record SetLinkUrl(String url) implements UiAction {}
+
+    /** Validates the link typed in the open sheet and, if it can be a pack, fetches its manifest. */
+    record CheckLink() implements UiAction {}
+
+    record LinkChecked(String url, Manifest manifest) implements UiAction {}
+
+    record LinkFailed(String url, SyncFailure failure) implements UiAction {}
+
+    record WizardNext() implements UiAction {}
+
+    record WizardBack() implements UiAction {}
+
+    record FoldersFound(List<GameFolder> folders) implements UiAction {}
+
+    /** A folder picked in the wizard or the pack settings; Effects then checks who uses it. */
+    record ChooseFolder(Path path) implements UiAction {}
+
+    record FolderChecked(GameFolder folder) implements UiAction {}
+
+    record FinishAddPack() implements UiAction {}
+
+    record SelectPackSection(Sheet.PackSettings.Section section) implements UiAction {}
+
+    record SavePackSettings() implements UiAction {}
+
+    record SetPreferences(Preferences preferences) implements UiAction {}
+
+    record SaveAppSettings() implements UiAction {}
+
+    /** Copies version, system and paths for a bug report. */
+    record CopyDiagnostics() implements UiAction {}
+
+    /** Closes HopSync: stops whatever is running (safe: the state always matches the disk) and exits. */
+    record Quit() implements UiAction {}
 
     /** A short notice at the bottom of the window. */
     record ShowToast(String text) implements UiAction {}

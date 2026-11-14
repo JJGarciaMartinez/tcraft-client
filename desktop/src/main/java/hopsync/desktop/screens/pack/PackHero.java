@@ -70,7 +70,8 @@ public final class PackHero extends JPanel {
         }
     };
     private final JProgressBar bar = new JProgressBar(0, 100);
-    private final JLabel percent = new JLabel();
+    private final JLabel files = new JLabel();
+    private final JLabel speed = new JLabel();
     private final JLabel currentFile = new JLabel();
     private String packId;
     private HeroModel shown;
@@ -113,10 +114,20 @@ public final class PackHero extends JPanel {
 
         stateTitle.putClientProperty(FlatClientProperties.STYLE, "font: semibold");
         stateDetail.setForeground(Palette.textSecondary());
-        JPanel stateRow = row(FlowLayout.LEFT);
-        stateRow.add(stateMark);
-        stateRow.add(stateTitle);
-        stateRow.add(stateDetail);
+        // One line, as in the design: the detail takes what is left and ends in "…" (full text in the tooltip)
+        JPanel stateTitleRow = row(FlowLayout.LEFT);
+        stateTitleRow.add(stateMark);
+        stateTitleRow.add(stateTitle);
+        JPanel stateRow = new JPanel(new BorderLayout(UIScale.scale(6), 0)) {
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
+            }
+        };
+        stateRow.setOpaque(false);
+        stateDetail.setMinimumSize(new Dimension(0, 0));
+        stateRow.add(stateTitleRow, BorderLayout.WEST);
+        stateRow.add(stateDetail, BorderLayout.CENTER);
 
         JPanel info = new JPanel();
         info.setOpaque(false);
@@ -142,15 +153,20 @@ public final class PackHero extends JPanel {
         tools.add(more);
 
         bar.setPreferredSize(new Dimension(UIScale.scale(PROGRESS_WIDTH), UIScale.scale(10)));
-        percent.setForeground(Palette.textSecondary());
+        files.setForeground(Palette.textSecondary());
+        files.putClientProperty(FlatClientProperties.STYLE, "font: -1");
+        speed.setForeground(Palette.textSecondary());
+        speed.putClientProperty(FlatClientProperties.STYLE, "font: -1");
         currentFile.setForeground(Palette.text());
+        currentFile.putClientProperty(FlatClientProperties.STYLE, "font: -1");
         progress.setOpaque(false);
         progress.add(bar, BorderLayout.NORTH);
-        JPanel progressText = new JPanel(new BorderLayout());
-        progressText.setOpaque(false);
-        progressText.add(currentFile, BorderLayout.CENTER);
-        progressText.add(percent, BorderLayout.EAST);
-        progress.add(progressText, BorderLayout.CENTER);
+        JPanel counts = new JPanel(new BorderLayout());
+        counts.setOpaque(false);
+        counts.add(files, BorderLayout.CENTER);
+        counts.add(speed, BorderLayout.EAST);
+        progress.add(counts, BorderLayout.CENTER);
+        progress.add(currentFile, BorderLayout.SOUTH);
 
         JPanel stack = new JPanel();
         stack.setOpaque(false);
@@ -191,13 +207,15 @@ public final class PackHero extends JPanel {
         if (!sameLayout(shown, model)) {
             rebuild(model);
         }
-        if (model.percent() != null) {
-            bar.setValue(model.percent());
-            percent.setText(Messages.get("hero.progress", model.percent()));
+        HeroModel.Applying applying = model.applying();
+        if (applying != null) {
+            bar.setValue(applying.percent());
+            bar.getAccessibleContext().setAccessibleDescription(Messages.get("hero.progress", applying.percent()));
+            files.setText(applying.files());
+            speed.setText(applying.speed());
             // A long name is cut with "…" inside the fixed width; the tooltip keeps it whole
-            String downloading = model.currentFile() == null ? " " : Messages.get("hero.downloading", model.currentFile());
-            currentFile.setText(downloading);
-            currentFile.setToolTipText(model.currentFile() == null ? null : downloading);
+            currentFile.setText(applying.current().isEmpty() ? " " : applying.current());
+            currentFile.setToolTipText(applying.current().isEmpty() ? null : applying.current());
         }
         shown = model;
         // The texts above change the height the header needs (the server button only exists with an IP)
@@ -215,7 +233,7 @@ public final class PackHero extends JPanel {
     private static boolean sameLayout(HeroModel before, HeroModel model) {
         return before != null && before.mark() == model.mark() && before.title().equals(model.title())
             && Objects.equals(before.detail(), model.detail()) && before.tags().equals(model.tags())
-            && before.actions().equals(model.actions()) && (before.percent() == null) == (model.percent() == null);
+            && before.actions().equals(model.actions()) && (before.applying() == null) == (model.applying() == null);
     }
 
     private void rebuild(HeroModel model) {
@@ -228,7 +246,7 @@ public final class PackHero extends JPanel {
         model.tags().forEach(tag -> tags.add(new StatusTag(tag.text(), tag.tone())));
         tags.setVisible(!model.tags().isEmpty());
 
-        progress.setVisible(model.percent() != null);
+        progress.setVisible(model.applying() != null);
 
         buttons.removeAll();
         for (HeroModel.Action action : model.actions()) {

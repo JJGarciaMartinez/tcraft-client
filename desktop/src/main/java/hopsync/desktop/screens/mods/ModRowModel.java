@@ -12,6 +12,7 @@ import hopsync.core.sync.SyncPlan.ModChange;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.Icons.Glyph;
 import hopsync.desktop.kit.StatusTag.Tone;
+import hopsync.desktop.screens.pack.HeroModel;
 import hopsync.desktop.screens.pack.PlanSummary;
 import hopsync.desktop.store.InstalledMods;
 import hopsync.desktop.store.PackPhase;
@@ -147,15 +148,16 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         String size = PlanSummary.formatBytes(mod.size());
         String author = mod.author() == null ? "" : mod.author();
         return switch (pack.rowStatus().get(mod.file())) {
-            case RowStatus.Downloading s -> row(mod, Glyph.SPINNER, ModRow.IconTone.ACCENT, version, oldVersion, author,
-                size, tag("mods.status.downloading", Tone.ADDED), ModRow.Look.CURRENT);
+            case RowStatus.Downloading s -> new ModRow.Mod(mod.file(), Glyph.SPINNER, ModRow.IconTone.ACCENT, mod.name(),
+                version, oldVersion, author, size, null, s.percent(), null, ModRow.Look.CURRENT, true);
             case RowStatus.Done s -> row(mod, Glyph.CHECK, ModRow.IconTone.ACCENT, version, oldVersion, author, size,
                 tag(change == ModChange.UPDATE ? "mods.status.updated" : "mods.status.installed", Tone.ACCENT),
                 ModRow.Look.NORMAL);
             // The reason takes the author's place, as in the design
-            case RowStatus.Failed s -> row(mod, Glyph.WARN, ModRow.IconTone.ERROR, version, oldVersion,
-                s.failure() == null ? Messages.get("mods.status.failed") : Messages.failure(s.failure()), size, null,
-                ModRow.Look.ERROR);
+            // Retrying re-checks the pack and applies what failed, unless the pack changed meanwhile
+            case RowStatus.Failed s -> new ModRow.Mod(mod.file(), Glyph.WARN, ModRow.IconTone.ERROR, mod.name(), version,
+                oldVersion, s.failure() == null ? Messages.get("mods.status.failed") : Messages.failure(s.failure()),
+                size, null, null, pack.phase().isBusy() ? null : HeroModel.retryFailed(pack), ModRow.Look.ERROR, true);
             case RowStatus.Pending s -> row(mod, Glyph.PENDING, ModRow.IconTone.FAINT, version, oldVersion, author, size,
                 tag("mods.status.pending", Tone.NEUTRAL), ModRow.Look.NORMAL);
             case RowStatus.Removed s -> throw new IllegalStateException("a pack mod is never removed: " + mod.file());
@@ -175,7 +177,8 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
 
     private static ModRow.Mod row(ModEntry mod, Glyph icon, ModRow.IconTone tone, String version, String oldVersion,
                                   String author, String size, ModRow.Tag tag, ModRow.Look look) {
-        return new ModRow.Mod(mod.file(), icon, tone, mod.name(), version, oldVersion, author, size, tag, look, true);
+        return new ModRow.Mod(mod.file(), icon, tone, mod.name(), version, oldVersion, author, size, tag, null, null,
+            look, true);
     }
 
     private static ModRow.Tag tag(String key, Tone tone) {
@@ -187,7 +190,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         return new ModRow.Mod(file, removed ? Glyph.CHECK : Glyph.MINUS,
             removed ? ModRow.IconTone.ACCENT : ModRow.IconTone.ERROR, file,
             VersionLabel.clean(pack.installed().versions().get(file), pack.packInfo()), null, "", "",
-            removed ? tag("mods.status.removed", Tone.ACCENT) : tag("mods.status.remove", Tone.ERROR),
+            removed ? tag("mods.status.removed", Tone.ACCENT) : tag("mods.status.remove", Tone.ERROR), null, null,
             ModRow.Look.NORMAL, false);
     }
 
@@ -213,7 +216,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
             Long size = installed.sizes().get(file);
             rows.add(new ModRow.Mod(file, Glyph.USER, ModRow.IconTone.FAINT, file, "—", null,
                 Messages.get("mods.own.author"), size == null ? "" : PlanSummary.formatBytes(size),
-                tag("mods.own.tag", Tone.NEUTRAL), ModRow.Look.NORMAL, false));
+                tag("mods.own.tag", Tone.NEUTRAL), null, null, ModRow.Look.NORMAL, false));
         }
         return rows;
     }
@@ -231,7 +234,7 @@ public record ModRowModel(List<ModRow> rows, int packCount, int ownCount, int co
         for (ConfigEntry config : shown) {
             rows.add(new ModRow.Mod(config.path(), Glyph.FILE, ModRow.IconTone.FAINT, config.path(), "—", null,
                 Messages.get("mods.configs.author"), PlanSummary.formatBytes(config.size()),
-                configTag(actions.get(config.path())), ModRow.Look.NORMAL, false));
+                configTag(actions.get(config.path())), null, null, ModRow.Look.NORMAL, false));
         }
         return rows;
     }

@@ -2,12 +2,19 @@ package hopsync.desktop.screens.library;
 
 import hopsync.core.event.SyncEvent;
 import hopsync.core.failure.SyncFailure;
+import hopsync.core.pack.Pack;
 import hopsync.desktop.i18n.Messages;
 import hopsync.desktop.kit.StatusMark;
+import hopsync.desktop.store.UiAction;
 import hopsync.desktop.store.UiState;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
 import static hopsync.desktop.store.StoreFixtures.DEMO;
+import static hopsync.desktop.store.StoreFixtures.OTHER;
 import static hopsync.desktop.store.StoreFixtures.loaded;
 import static hopsync.desktop.store.StoreFixtures.plan;
 import static hopsync.desktop.store.StoreFixtures.reduce;
@@ -36,7 +43,7 @@ class LibraryStatusTest {
     @Test
     void applyingShowsThePercentInTheRing() {
         LibraryStatus status = status(reduce(loaded(), new SyncEvent.UpdateStarted(D), new SyncEvent.PlanReady(D, plan()),
-            new SyncEvent.ApplyStarted(D), new SyncEvent.ProgressChanged(D, 63)));
+            new SyncEvent.ApplyStarted(D), new SyncEvent.Progress(D, 1, 3, 63, 100, 0)));
 
         assertEquals(new LibraryStatus(StatusMark.Kind.PROGRESS, 63, Messages.get("library.status.applying", 63)), status);
     }
@@ -47,5 +54,25 @@ class LibraryStatusTest {
             new SyncEvent.UpdateFailed(D, new SyncFailure.Network("github.com", "timeout")))).text());
         assertEquals(Messages.get("library.status.error"), status(reduce(loaded(), new SyncEvent.UpdateStarted(D),
             new SyncEvent.UpdateFailed(D, new SyncFailure.DiskFull("x")))).text());
+    }
+
+    @Test
+    void copiesOfOnePackAddTheirFolder() {
+        Pack prism = new Pack("prism", DEMO.manifestUrl(),
+            Path.of("/games/PrismLauncher/instances/Create 1.21/minecraft").toAbsolutePath(), "Demo");
+        UiState state = reduce(UiState.INITIAL, new UiAction.PacksLoaded(List.of(DEMO, prism, OTHER), DEMO.id()));
+
+        Map<String, String> names = LibraryStatus.names(state.packs().values());
+
+        assertEquals("Demo · demo", names.get(DEMO.id()));
+        assertEquals("Demo · Create 1.21", names.get("prism"));
+        assertEquals("Other", names.get(OTHER.id()));
+    }
+
+    @Test
+    void folderNamesSkipTheLauncherMinecraftFolder() {
+        assertEquals(".minecraft", LibraryStatus.folderName(Path.of("/home/me/.minecraft")));
+        assertEquals("ATM 10", LibraryStatus.folderName(Path.of("/home/me/curseforge/minecraft/Instances/ATM 10")));
+        assertEquals("Fabric", LibraryStatus.folderName(Path.of("/data/PrismLauncher/instances/Fabric/minecraft")));
     }
 }

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,6 +46,18 @@ class PackRegistryTest {
     }
 
     @Test
+    void copiesOfOnePackNeedTheirOwnFolders() throws IOException {
+        Pack first = registry.add(URL, dir.resolve("a"));
+        Pack copy = registry.add(URL, dir.resolve("b"));
+
+        assertEquals(2, registry.packs().size());
+        SyncException e = assertThrows(SyncException.class, () -> registry.update(copy.withGameDir(first.gameDir())));
+        assertInstanceOf(SyncFailure.FolderUsedByPack.class, e.failure());
+        registry.update(copy.withGameDir(dir.resolve("c")));
+        assertEquals(dir.resolve("c"), registry.find(copy.id()).orElseThrow().gameDir());
+    }
+
+    @Test
     void nestedFoldersAreRejectedBothWays() throws IOException {
         registry.add(URL, dir.resolve("instances/one"));
         assertFolderRejected(dir.resolve("instances/one/sub"));
@@ -64,6 +77,22 @@ class PackRegistryTest {
         registry.add(URL, real);
         assertFolderRejected(link);
         assertFolderRejected(link.resolve("not-yet-created"));
+    }
+
+    @Test
+    void tellsWhichPackUsesAFolder() throws IOException {
+        Pack pack = registry.add(URL, dir.resolve("a"));
+
+        assertEquals(pack, registry.packUsing(dir.resolve("a/sub"), null).orElseThrow());
+        assertTrue(registry.packUsing(dir.resolve("a"), pack.id()).isEmpty(), "a pack may keep its own folder");
+        assertTrue(registry.packUsing(dir.resolve("b"), null).isEmpty());
+    }
+
+    @Test
+    void preferencesAreSavedAndClamped() throws IOException {
+        registry.updatePreferences(false, false, 40);
+
+        assertEquals(new PackSettings(List.of(), null, false, false, 8), repository.saved);
     }
 
     @Test

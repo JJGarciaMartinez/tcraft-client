@@ -20,6 +20,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.RenderingHints;
+import java.util.Map;
 
 /**
  * One pack in the library: block tile, name and status line. The selected pack is raised like a pressed
@@ -32,6 +33,7 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
     private boolean selected;
     private boolean hovered;
     private int hoverIndex = -1;
+    private Map<String, String> names = Map.of();
 
     PackCell() {
         super(new BorderLayout(UIScale.scale(10), 0));
@@ -49,6 +51,11 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
         add(text, BorderLayout.CENTER);
     }
 
+    /** Names from {@link LibraryStatus#names}, by pack id. */
+    void setNames(Map<String, String> newNames) {
+        names = newNames;
+    }
+
     int hoverIndex() {
         return hoverIndex;
     }
@@ -62,13 +69,15 @@ final class PackCell extends JPanel implements ListCellRenderer<PackUiState> {
                                                   boolean isSelected, boolean cellHasFocus) {
         LibraryStatus line = LibraryStatus.of(pack);
         tile.setIcon(BlockTile.forPack(pack.packId(), 34));
-        name.setText(pack.displayName());
+        String shownName = names.getOrDefault(pack.packId(), pack.displayName());
+        name.setText(shownName);
+        name.setToolTipText(pack.gameDir().toString());
         name.setForeground(Palette.text());
         status.setText(line.text());
         status.setIcon(line.mark() == StatusMark.Kind.PROGRESS ? StatusMark.progress(line.percent()) : StatusMark.of(line.mark()));
         selected = isSelected;
         hovered = index == hoverIndex;
-        getAccessibleContext().setAccessibleName(pack.displayName() + ", " + line.text());
+        getAccessibleContext().setAccessibleName(shownName + ", " + line.text());
         return this;
     }
 

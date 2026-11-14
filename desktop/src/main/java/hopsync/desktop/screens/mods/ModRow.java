@@ -29,11 +29,14 @@ public sealed interface ModRow {
     /**
      * @param key        file name (or config path), unique within the list
      * @param oldVersion installed version shown before an arrow, or {@code null}
-     * @param tag        status tag, or {@code null}
-     * @param expandable clicking it shows a {@link Detail} below
+     * @param tag          status tag, or {@code null}
+     * @param progress     download percent shown as a small bar instead of the tag, or {@code null}
+     * @param statusAction a small button in the status column ("Reintentar"), or {@code null}
+     * @param expandable   clicking it shows a {@link Detail} below
      */
     record Mod(String key, Glyph icon, IconTone iconTone, String name, String version, String oldVersion,
-               String author, String size, Tag tag, Look look, boolean expandable) implements ModRow {
+               String author, String size, Tag tag, Integer progress, UiAction statusAction, Look look,
+               boolean expandable) implements ModRow {
     }
 
     /** @param url page opened by the link, or {@code null} for no link */
